@@ -5,10 +5,7 @@ import { createPortal } from "react-dom";
 import Image from "next/image";
 import { QRCodeSVG } from "qrcode.react";
 import { Check, Copy, X } from "lucide-react";
-
-function shortenAddress(address: string) {
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
-}
+import { shortenAddress } from "@/lib/address";
 
 export default function WalletQrModal({
   address,

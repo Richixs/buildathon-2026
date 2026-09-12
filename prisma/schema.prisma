@@ -5,3 +5,21 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+// address is stored lowercased (see lib/address.ts normalizeAddress) so
+// lookups don't depend on EIP-55 checksum casing.
+// role is a plain string ("investor" | "startup") rather than a Prisma enum
+// to match the frontend's ProfileRole union (components/profile/RegistrationForm.tsx)
+// byte-for-byte and avoid a casing-conversion layer between the two.
+model Profile {
+  address   String   @id
+  username  String
+  bio       String   @default("")
+  link      String?
+  role      String   @default("investor")
+  legalName String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("profiles")
+}

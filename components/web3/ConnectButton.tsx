@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import {
   Briefcase,
   Check,
@@ -14,10 +15,7 @@ import {
 import { useAppKit } from "@reown/appkit/react";
 import { useAccount, useDisconnect } from "wagmi";
 import WalletQrModal from "@/components/web3/WalletQrModal";
-
-function shortenAddress(address: string) {
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
-}
+import { shortenAddress } from "@/lib/address";
 
 const TRIGGER_BASE_CLASSES =
   "flex items-center gap-2 border-2 px-4 py-2 font-mono text-sm font-bold transition-all duration-100 active:translate-x-1 active:translate-y-1 active:shadow-none";
@@ -96,15 +94,15 @@ export default function ConnectButton() {
           role="menu"
           className="border-neon-cyan bg-crt-black shadow-brutal absolute top-full right-0 z-[60] mt-2 w-56 border-2 p-1"
         >
-          <button
-            type="button"
+          <Link
+            href="/profile"
             role="menuitem"
             className={MENU_ITEM_CLASSES}
             onClick={() => setIsOpen(false)}
           >
             <User className="h-4 w-4" />
             Ver mi Perfil
-          </button>
+          </Link>
           <button
             type="button"
             role="menuitem"
