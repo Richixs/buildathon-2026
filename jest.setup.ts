@@ -1,4 +1,12 @@
 import "@testing-library/jest-dom";
+import { TextEncoder, TextDecoder } from "node:util";
+
+// jsdom doesn't provide these globals, but viem (imported by InvestForm)
+// needs them at module load time.
+global.TextEncoder = TextEncoder;
+// @ts-expect-error -- node's TextDecoder is structurally compatible with the
+// DOM lib type jsdom expects here; only the generic input typing differs.
+global.TextDecoder = TextDecoder;
 
 // Baseline global fetch mock. Individual tests provide the response they
 // need via `jest.mocked(fetch).mockResolvedValueOnce(...)`.
