@@ -103,24 +103,24 @@ export default function ConnectButton() {
             <User className="h-4 w-4" />
             Ver mi Perfil
           </Link>
-          <button
-            type="button"
+          <Link
+            href="/profile?tab=investments"
             role="menuitem"
             className={MENU_ITEM_CLASSES}
             onClick={() => setIsOpen(false)}
           >
             <Briefcase className="h-4 w-4" />
             Mis Inversiones
-          </button>
-          <button
-            type="button"
+          </Link>
+          <Link
+            href="/profile?tab=startups"
             role="menuitem"
             className={MENU_ITEM_CLASSES}
             onClick={() => setIsOpen(false)}
           >
             <Rocket className="h-4 w-4" />
             Mis Startups
-          </button>
+          </Link>
 
           <div className="bg-off-white/10 my-1 h-px" />
 

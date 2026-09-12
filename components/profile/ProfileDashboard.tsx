@@ -3,11 +3,18 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAccount } from "wagmi";
 import { Briefcase, Rocket } from "lucide-react";
 import ProgressBar from "@/components/startup/ProgressBar";
 import { shortenAddress } from "@/lib/address";
 import type { ProfileRole } from "@/components/profile/RegistrationForm";
+
+type ProfileTab = "investments" | "startups";
+
+function isProfileTab(value: string | null): value is ProfileTab {
+  return value === "investments" || value === "startups";
+}
 
 interface FetchedProfile {
   address: string;
@@ -41,11 +48,19 @@ function formatAddress(address?: string): string {
 }
 
 export default function ProfileDashboard() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+
   const { address } = useAccount();
   const [profile, setProfile] = useState<FetchedProfile | null>(null);
   const [isLoading, setIsLoading] = useState(Boolean(address));
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [trackedAddress, setTrackedAddress] = useState(address);
+  const [activeTab, setActiveTab] = useState<ProfileTab>(
+    isProfileTab(tabParam) ? tabParam : "investments",
+  );
+  const [trackedTabParam, setTrackedTabParam] = useState(tabParam);
 
   // Reset synchronously during render when the address changes (e.g. wallet
   // disconnected or switched) instead of in an effect — avoids an extra
@@ -54,6 +69,14 @@ export default function ProfileDashboard() {
     setTrackedAddress(address);
     setProfile(null);
     setIsLoading(Boolean(address));
+  }
+
+  // Same pattern for ?tab=... — keeps the tab in sync on every navigation,
+  // not just the first render (e.g. clicking "Mis Startups" in ConnectButton
+  // while already on /profile does a client-side transition, not a remount).
+  if (tabParam !== trackedTabParam) {
+    setTrackedTabParam(tabParam);
+    if (isProfileTab(tabParam)) setActiveTab(tabParam);
   }
 
   useEffect(() => {
@@ -141,70 +164,87 @@ export default function ProfileDashboard() {
         )}
       </header>
 
-      <div className="mt-8 grid grid-cols-1 gap-8 md:grid-cols-2">
-        <section aria-label="Mis Inversiones">
-          <h2 className="text-off-white border-muted-teal mb-4 flex items-center gap-2 border-b pb-2 font-mono">
-            <Briefcase className="text-muted-teal h-5 w-5" />
-            MIS_INVERSIONES
-          </h2>
+      <div className="border-muted-teal/40 mt-8 flex gap-6 border-b">
+        <button
+          type="button"
+          onClick={() => setActiveTab("investments")}
+          className={`flex items-center gap-2 border-b-2 px-1 pb-3 font-mono text-sm transition-colors ${
+            activeTab === "investments"
+              ? "border-neon-cyan text-neon-cyan"
+              : "text-off-white/50 hover:text-off-white border-transparent"
+          }`}
+        >
+          <Briefcase className="h-4 w-4" />
+          MIS_INVERSIONES
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("startups")}
+          className={`flex items-center gap-2 border-b-2 px-1 pb-3 font-mono text-sm transition-colors ${
+            activeTab === "startups"
+              ? "border-neon-cyan text-neon-cyan"
+              : "text-off-white/50 hover:text-off-white border-transparent"
+          }`}
+        >
+          <Rocket className="h-4 w-4" />
+          MIS_STARTUPS
+        </button>
+      </div>
 
-          {MOCK_INVESTMENTS.length === 0 ? (
-            <div className="bg-terminal-gray border-muted-teal border p-6 text-center">
-              <p className="text-off-white/70 font-sans text-sm">
-                Todavía no has invertido en ningún proyecto.
-              </p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {MOCK_INVESTMENTS.map((investment) => (
-                <div
-                  key={investment.id}
-                  className="border-muted-teal/40 bg-terminal-gray/60 flex items-center justify-between gap-3 border p-4"
-                >
-                  <span className="font-mono text-sm font-bold">
-                    {investment.projectName}
-                  </span>
-                  <span className="text-neon-cyan font-mono text-xs">
-                    {investment.amountHsk} HSK
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section aria-label="Mis Startups">
-          <h2 className="text-off-white border-muted-teal mb-4 flex items-center gap-2 border-b pb-2 font-mono">
-            <Rocket className="text-muted-teal h-5 w-5" />
-            MIS_STARTUPS
-          </h2>
-
-          {profile.role === "investor" ? (
-            <EmptyStartupsState
-              onLaunchClick={() => setIsUpgradeModalOpen(true)}
-            />
-          ) : MOCK_STARTUPS.length === 0 ? (
-            <MinimalStartupEmptyState
-              onCreateCampaignClick={() =>
-                alert("Redirigiendo a creación de contrato...")
-              }
-            />
-          ) : (
-            <div className="flex flex-col gap-3">
-              {MOCK_STARTUPS.map((startup) => (
-                <div
-                  key={startup.id}
-                  className="border-muted-teal/40 bg-terminal-gray/60 flex flex-col gap-2 border p-4"
-                >
-                  <span className="font-mono text-sm font-bold">
-                    {startup.name}
-                  </span>
-                  <ProgressBar value={startup.progressPct} />
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
+      <div className="mt-6">
+        {activeTab === "investments" ? (
+          <section aria-label="Mis Inversiones">
+            {MOCK_INVESTMENTS.length === 0 ? (
+              <div className="bg-terminal-gray border-muted-teal border p-6 text-center">
+                <p className="text-off-white/70 font-sans text-sm">
+                  Todavía no has invertido en ningún proyecto.
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {MOCK_INVESTMENTS.map((investment) => (
+                  <div
+                    key={investment.id}
+                    className="border-muted-teal/40 bg-terminal-gray/60 flex items-center justify-between gap-3 border p-4"
+                  >
+                    <span className="font-mono text-sm font-bold">
+                      {investment.projectName}
+                    </span>
+                    <span className="text-neon-cyan font-mono text-xs">
+                      {investment.amountHsk} HSK
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        ) : (
+          <section aria-label="Mis Startups">
+            {profile.role === "investor" ? (
+              <EmptyStartupsState
+                onLaunchClick={() => setIsUpgradeModalOpen(true)}
+              />
+            ) : MOCK_STARTUPS.length === 0 ? (
+              <MinimalStartupEmptyState
+                onCreateCampaignClick={() => router.push("/campaigns/create")}
+              />
+            ) : (
+              <div className="flex flex-col gap-3">
+                {MOCK_STARTUPS.map((startup) => (
+                  <div
+                    key={startup.id}
+                    className="border-muted-teal/40 bg-terminal-gray/60 flex flex-col gap-2 border p-4"
+                  >
+                    <span className="font-mono text-sm font-bold">
+                      {startup.name}
+                    </span>
+                    <ProgressBar value={startup.progressPct} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
       </div>
 
       {isUpgradeModalOpen && (

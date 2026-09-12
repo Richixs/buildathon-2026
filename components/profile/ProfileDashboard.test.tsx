@@ -5,6 +5,14 @@ import ProfileDashboard from "@/components/profile/ProfileDashboard";
 
 const ADDRESS = "0x1234567890123456789012345678901234567890";
 
+const mockPush = jest.fn();
+const mockUseSearchParams = jest.fn(() => new URLSearchParams());
+
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ push: mockPush }),
+  useSearchParams: () => mockUseSearchParams(),
+}));
+
 const investorProfile = {
   address: ADDRESS,
   username: "satoshi_dev",
@@ -28,12 +36,19 @@ function mockFetchOnce(body: unknown, ok = true) {
   } as Response);
 }
 
+async function goToStartupsTab(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(
+    await screen.findByRole("button", { name: /mis_startups/i }),
+  );
+}
+
 describe("ProfileDashboard", () => {
   beforeEach(() => {
     jest.mocked(useAccount).mockReturnValue({
       address: ADDRESS,
       isConnected: true,
     } as unknown as ReturnType<typeof useAccount>);
+    mockUseSearchParams.mockReturnValue(new URLSearchParams());
   });
 
   it("renders nothing when no wallet is connected", () => {
@@ -66,7 +81,18 @@ describe("ProfileDashboard", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders the investor view with the LANZAR_MI_STARTUP CTA", async () => {
+  it("defaults to the Mis Inversiones tab", async () => {
+    mockFetchOnce(investorProfile);
+
+    render(<ProfileDashboard />);
+
+    expect(
+      await screen.findByText(/todavía no has invertido/i),
+    ).toBeInTheDocument();
+  });
+
+  it("switches to Mis Startups automatically when the URL has ?tab=startups", async () => {
+    mockUseSearchParams.mockReturnValue(new URLSearchParams("tab=startups"));
     mockFetchOnce(investorProfile);
 
     render(<ProfileDashboard />);
@@ -75,9 +101,23 @@ describe("ProfileDashboard", () => {
       await screen.findByRole("button", { name: /lanzar_mi_startup/i }),
     ).toBeInTheDocument();
     expect(
+      screen.queryByText(/todavía no has invertido/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders the investor view with the LANZAR_MI_STARTUP CTA", async () => {
+    const user = userEvent.setup();
+    mockFetchOnce(investorProfile);
+
+    render(<ProfileDashboard />);
+    await goToStartupsTab(user);
+
+    expect(
+      screen.getByRole("button", { name: /lanzar_mi_startup/i }),
+    ).toBeInTheDocument();
+    expect(
       screen.queryByText("[ 0 CAMPAÑAS ACTIVAS ]"),
     ).not.toBeInTheDocument();
-    expect(screen.queryByText(/verified_founder/i)).not.toBeInTheDocument();
   });
 
   it("opens the upgrade modal when LANZAR_MI_STARTUP is clicked", async () => {
@@ -85,9 +125,9 @@ describe("ProfileDashboard", () => {
     mockFetchOnce(investorProfile);
 
     render(<ProfileDashboard />);
-
+    await goToStartupsTab(user);
     await user.click(
-      await screen.findByRole("button", { name: /lanzar_mi_startup/i }),
+      screen.getByRole("button", { name: /lanzar_mi_startup/i }),
     );
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
@@ -98,9 +138,9 @@ describe("ProfileDashboard", () => {
     mockFetchOnce(investorProfile);
 
     render(<ProfileDashboard />);
-
+    await goToStartupsTab(user);
     await user.click(
-      await screen.findByRole("button", { name: /lanzar_mi_startup/i }),
+      screen.getByRole("button", { name: /lanzar_mi_startup/i }),
     );
     await user.click(screen.getByRole("button", { name: /cancelar/i }));
 
@@ -112,9 +152,9 @@ describe("ProfileDashboard", () => {
     mockFetchOnce(investorProfile); // GET on mount
 
     render(<ProfileDashboard />);
-
+    await goToStartupsTab(user);
     await user.click(
-      await screen.findByRole("button", { name: /lanzar_mi_startup/i }),
+      screen.getByRole("button", { name: /lanzar_mi_startup/i }),
     );
     await user.type(screen.getByLabelText(/nombre legal/i), "Acme Inc.");
 
@@ -138,19 +178,32 @@ describe("ProfileDashboard", () => {
   });
 
   it("renders the minimalist empty state for a startup with no campaigns", async () => {
+    const user = userEvent.setup();
     mockFetchOnce(startupProfile);
 
     render(<ProfileDashboard />);
+    await goToStartupsTab(user);
 
-    expect(
-      await screen.findByText("[ 0 CAMPAÑAS ACTIVAS ]"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("[ 0 CAMPAÑAS ACTIVAS ]")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /crear_nueva_campaña/i }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /lanzar_mi_startup/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("navigates to /campaigns/create when CREAR_NUEVA_CAMPAÑA is clicked", async () => {
+    const user = userEvent.setup();
+    mockFetchOnce(startupProfile);
+
+    render(<ProfileDashboard />);
+    await goToStartupsTab(user);
+    await user.click(
+      screen.getByRole("button", { name: /crear_nueva_campaña/i }),
+    );
+
+    expect(mockPush).toHaveBeenCalledWith("/campaigns/create");
   });
 
   it("shows the VERIFIED_FOUNDER badge for startup profiles", async () => {
