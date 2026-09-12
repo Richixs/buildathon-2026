@@ -19,12 +19,12 @@ export const hashkeyTestnet = defineChain({
   name: "HashKey Chain Testnet",
   nativeCurrency: { name: "HashKey", symbol: "HSK", decimals: 18 },
   rpcUrls: {
-    default: { http: ["https://testnet.hashkey.cloud"] },
+    default: { http: ["https://testnet.hsk.xyz"] },
   },
   blockExplorers: {
     default: {
       name: "HashKey Explorer",
-      url: "https://testnet.explorer.hashkey.cloud",
+      url: "https://testnet-explorer.hskchain.net",
     },
   },
   testnet: true,
@@ -37,10 +37,10 @@ export const hashkeyMainnet = defineChain({
   name: "HashKey Chain",
   nativeCurrency: { name: "HashKey", symbol: "HSK", decimals: 18 },
   rpcUrls: {
-    default: { http: ["https://mainnet.hashkey.cloud"] },
+    default: { http: ["https://mainnet.hsk.xyz"] },
   },
   blockExplorers: {
-    default: { name: "HashKey Explorer", url: "https://explorer.hashkey.cloud" },
+    default: { name: "HashKey Explorer", url: "https://explorer.hsk.xyz" },
   },
 });
 
