@@ -29,6 +29,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+        env:
+          DATABASE_URL: "postgresql://pollar_track:pollar_track@localhost:5432/pollar_track?schema=public"
       - run: npm run lint
 
   build-and-push:
