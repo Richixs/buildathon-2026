@@ -75,33 +75,33 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  update-deploy-repo:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    environment: development
-    env:
-      IMAGE_TAG: ghcr.io/${{ needs.build-and-push.outputs.image_name }}:${{ needs.build-and-push.outputs.image_tag }}
-      DEPLOY_REPO_URL: ${{ vars.DEPLOY_REPO_URL || 'lab.sasxr.com/s-system/deploy.git' }}
-    steps:
-      - name: Clone deploy repo
-        env:
-          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
-        run: |
-          git config --global http.sslVerify false
-          git clone "https://oauth2:${DEPLOY_TOKEN}@${DEPLOY_REPO_URL}" deploy
-
-      - name: Set dev overlay image with kustomize
-        working-directory: deploy/k8s/apps/buildathon/overlays/dev
-        run: |
-          curl -sL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v5.3.0/kustomize_v5.3.0_linux_amd64.tar.gz" | tar xz
-          ./kustomize edit set image buildathon-app="${IMAGE_TAG}"
-          rm -f kustomize
-
-      - name: Commit and push
-        working-directory: deploy
-        run: |
-          git config user.email "github-actions@sasxr.com"
-          git config user.name "GitHub Actions"
-          git add k8s/apps/buildathon/overlays/dev/kustomization.yaml
-          git diff --cached --quiet || git commit -m "Update buildathon DEV image to ${GITHUB_SHA::7}"
-          git push origin main
+#  update-deploy-repo:
+#    needs: build-and-push
+#    runs-on: ubuntu-latest
+#    environment: development
+#    env:
+#      IMAGE_TAG: ghcr.io/${{ needs.build-and-push.outputs.image_name }}:${{ needs.build-and-push.outputs.image_tag }}
+#      DEPLOY_REPO_URL: ${{ vars.DEPLOY_REPO_URL || 'lab.sasxr.com/s-system/deploy.git' }}
+#    steps:
+#      - name: Clone deploy repo
+#        env:
+#          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+#        run: |
+#          git config --global http.sslVerify false
+#          git clone "https://oauth2:${DEPLOY_TOKEN}@${DEPLOY_REPO_URL}" deploy
+#
+#      - name: Set dev overlay image with kustomize
+#        working-directory: deploy/k8s/apps/buildathon/overlays/dev
+#        run: |
+#          curl -sL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v5.3.0/kustomize_v5.3.0_linux_amd64.tar.gz" | tar xz
+#          ./kustomize edit set image buildathon-app="${IMAGE_TAG}"
+#          rm -f kustomize
+#
+#      - name: Commit and push
+#        working-directory: deploy
+#        run: |
+#          git config user.email "github-actions@sasxr.com"
+#          git config user.name "GitHub Actions"
+#          git add k8s/apps/buildathon/overlays/dev/kustomization.yaml
+#          git diff --cached --quiet || git commit -m "Update buildathon DEV image to ${GITHUB_SHA::7}"
+#          git push origin main
