@@ -9,12 +9,6 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      # Postgres 18's official image moved the VOLUME mount point up to the
-      # parent dir; PGDATA now defaults to a versioned subdir under it
-      # (/var/lib/postgresql/18/docker), which makes future major-version
-      # upgrades able to use pg_upgrade's faster --link mode. Mounting
-      # /var/lib/postgresql/data here (the pre-18 default) would silently
-      # miss the actual data directory.
       - db_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U pollar_track -d pollar_track"]
