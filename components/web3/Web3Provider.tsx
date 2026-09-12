@@ -19,7 +19,9 @@ const metadata = {
     "Crowdfunding de equity tokenizado (SAFE) respaldado por escrow on-chain con liberación por hitos.",
   url:
     process.env.NEXT_PUBLIC_APP_URL ??
-    (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000"),
+    (typeof window !== "undefined"
+      ? window.location.origin
+      : "http://localhost:3000"),
   icons: ["/favicon.ico"],
 };
 
@@ -35,9 +37,7 @@ createAppKit({
 export default function Web3Provider({ children }: { children: ReactNode }) {
   return (
     <WagmiProvider config={wagmiAdapter.wagmiConfig as Config}>
-      <QueryClientProvider client={queryClient}>
-        {children}
-      </QueryClientProvider>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     </WagmiProvider>
   );
 }

@@ -39,17 +39,13 @@ export default function ConnectButton() {
     if (!isOpen) return;
 
     function handleClickOutside(event: MouseEvent) {
-      if (
-        menuRef.current &&
-        !menuRef.current.contains(event.target as Node)
-      ) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     }
 
     document.addEventListener("mousedown", handleClickOutside);
-    return () =>
-      document.removeEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen]);
 
   if (!isConnected || !address) {
@@ -57,7 +53,7 @@ export default function ConnectButton() {
       <button
         type="button"
         onClick={() => open()}
-        className={`${TRIGGER_BASE_CLASSES} border-neon-cyan bg-neon-cyan text-crt-black shadow-brutal-teal hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-brutal-teal-sm`}
+        className={`${TRIGGER_BASE_CLASSES} border-neon-cyan bg-neon-cyan text-crt-black shadow-brutal-teal hover:shadow-brutal-teal-sm hover:translate-x-[2px] hover:translate-y-[2px]`}
       >
         CONECTAR_WALLET
       </button>
@@ -82,7 +78,7 @@ export default function ConnectButton() {
         aria-haspopup="menu"
         aria-expanded={isOpen}
         onClick={() => setIsOpen((prev) => !prev)}
-        className={`${TRIGGER_BASE_CLASSES} border-neon-cyan text-neon-cyan shadow-brutal bg-transparent hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-brutal-sm`}
+        className={`${TRIGGER_BASE_CLASSES} border-neon-cyan text-neon-cyan shadow-brutal hover:shadow-brutal-sm bg-transparent hover:translate-x-[2px] hover:translate-y-[2px]`}
       >
         <Image
           src={`https://api.dicebear.com/9.x/pixel-art/svg?seed=${address}`}
