@@ -7,7 +7,8 @@ on:
       - Dockerfile
       - .dockerignore
       - package.json
-      - package-lock.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
       - prisma/**
       - prisma.config.ts
       - app/**
@@ -24,14 +25,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
         env:
           DATABASE_URL: "postgresql://pollar_track:pollar_track@localhost:5432/pollar_track?schema=public"
-      - run: npm run lint
+      - run: pnpm run lint
 
   build-and-push:
     needs: lint

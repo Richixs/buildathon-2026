@@ -10,6 +10,7 @@ WORKDIR /app
 RUN apt-get update \
     && apt-get install -y --no-install-recommends openssl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
+RUN corepack enable && corepack prepare pnpm@12.4.1 --activate
 
 # `prisma generate` only needs DATABASE_URL to be *set*, not reachable — it
 # never connects to the database. Real values are injected at container
@@ -21,23 +22,23 @@ ENV DATABASE_URL=${DATABASE_URL}
 # --ignore-scripts: the prisma schema isn't copied in yet, so `postinstall`
 # (prisma generate) is run explicitly in the stages below instead.
 FROM base AS deps
-COPY package.json package-lock.json ./
-RUN npm ci --ignore-scripts
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # ---- development (used by compose.yml) -------------------------------------
 FROM deps AS dev
 COPY . .
-RUN npx prisma generate
+RUN pnpm exec prisma generate
 ENV NODE_ENV=development
 EXPOSE 3000
-CMD ["npm", "run", "dev"]
+CMD ["pnpm", "run", "dev"]
 
 # ---- production build -------------------------------------------------------
 FROM deps AS builder
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npx prisma generate
-RUN npm run build
+RUN pnpm exec prisma generate
+RUN pnpm run build
 
 # ---- production runtime -----------------------------------------------------
 FROM base AS runner
