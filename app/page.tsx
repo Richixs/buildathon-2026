@@ -1,69 +1,304 @@
-import Image from "next/image";
+const steps = [
+  {
+    n: "01",
+    title: "LA_OFERTA",
+    body: "La startup tokeniza su ronda: emite Security Tokens respaldados por un acuerdo SAFE on-chain (ej. $100K por 10% de equity).",
+  },
+  {
+    n: "02",
+    title: "INVERSIÓN_+_ESCROW",
+    body: "El inversor deposita USDC en el Smart Contract de Escrow y recibe sus tokens de equity al instante. El capital queda bloqueado.",
+  },
+  {
+    n: "03",
+    title: "LIBERACIÓN_POR_HITOS",
+    body: "El contrato libera fondos solo cuando se cumplen hitos verificables. Si la startup falla, el capital restante vuelve al inversor.",
+  },
+];
+
+const startups = [
+  {
+    sector: "FINTECH",
+    name: "NEXUS_LABS",
+    token: "$NXS",
+    description:
+      "Infraestructura de pagos cross-border para remesas en Latinoamérica.",
+    equityOffered: 10,
+    goal: 100_000,
+    raised: 62_000,
+    backers: 84,
+    milestones: ["MVP", "1K usuarios", "Serie A"],
+    currentMilestone: 1,
+  },
+  {
+    sector: "SAAS",
+    name: "GHOST_STACK",
+    token: "$GHST",
+    description: "Observabilidad self-hosted con cero telemetría a terceros.",
+    equityOffered: 8,
+    goal: 60_000,
+    raised: 60_000,
+    backers: 156,
+    milestones: ["Beta cerrada", "Beta pública", "$10K MRR"],
+    currentMilestone: 2,
+  },
+  {
+    sector: "GAMEFI",
+    name: "ARCADE.SOL",
+    token: "$ARC",
+    description:
+      "Torneos NFT con puntuaciones verificables y premios en cadena.",
+    equityOffered: 12,
+    goal: 150_000,
+    raised: 28_500,
+    backers: 41,
+    milestones: ["Demo jugable", "500 jugadores activos", "Publisher deal"],
+    currentMilestone: 0,
+  },
+];
+
+const usd = (n: number) => `$${n.toLocaleString("en-US")}`;
+
+function ProgressBar({ value }: { value: number }) {
+  return (
+    <div className="border-neon-cyan/30 bg-crt-black h-3 w-full border">
+      <div
+        className="bg-retro-green h-full"
+        style={{ width: `${Math.min(value, 100)}%` }}
+      />
+    </div>
+  );
+}
+
+function MilestoneStepper({
+  milestones,
+  current,
+}: {
+  milestones: string[];
+  current: number;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      {milestones.map((m, i) => {
+        const done = i < current;
+        const active = i === current;
+        return (
+          <div key={m} className="flex items-center gap-2 font-mono text-xs">
+            <span
+              className={
+                done
+                  ? "text-retro-green"
+                  : active
+                    ? "text-neon-cyan"
+                    : "text-off-white/30"
+              }
+            >
+              {done ? "[✓]" : active ? "[▸]" : "[ ]"}
+            </span>
+            <span
+              className={
+                done || active ? "text-off-white" : "text-off-white/30"
+              }
+            >
+              {m}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function Home() {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex w-full max-w-3xl flex-1 flex-col items-center justify-between bg-white px-16 py-32 sm:items-start dark:bg-black">
-        <Image
-          className="h-5 w-[100px] dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl leading-10 font-semibold tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
+    <div className="bg-crt-black text-off-white relative flex flex-1 flex-col">
+      <div className="bg-crt-scanlines pointer-events-none fixed inset-0 z-50" />
+
+      <header className="border-neon-cyan/20 bg-crt-black/90 sticky top-0 z-40 border-b backdrop-blur-sm">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+          <span className="text-neon-cyan font-mono text-lg font-bold tracking-widest">
+            EQUITY_CHAIN<span className="text-off-white/40">_v0.1</span>
+          </span>
+          <nav className="text-off-white/70 hidden items-center gap-8 font-mono text-sm sm:flex">
+            <a
+              href="#startups"
+              className="hover:text-neon-cyan transition-colors"
+            >
+              STARTUPS
+            </a>
+            <a
+              href="#como-funciona"
+              className="hover:text-neon-cyan transition-colors"
+            >
+              CÓMO_FUNCIONA
+            </a>
+            <a href="#" className="hover:text-neon-cyan transition-colors">
+              DOCS
+            </a>
+          </nav>
+          <button className="bg-neon-cyan shadow-brutal-sm hover:shadow-brutal border-crt-black text-crt-black border-2 px-4 py-2 font-mono text-sm font-bold transition-shadow active:translate-x-[2px] active:translate-y-[2px] active:shadow-none">
+            CONECTAR_WALLET
+          </button>
+        </div>
+      </header>
+
+      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-24 px-6 py-20">
+        <section className="flex flex-col items-start gap-6">
+          <span className="text-retro-green border-retro-green/40 bg-retro-green/10 border px-2 py-1 font-mono text-xs tracking-widest">
+            ● SECURITY TOKENS RESPALDADOS POR ESCROW
+          </span>
+          <h1 className="max-w-2xl font-mono text-4xl leading-tight font-bold tracking-tight sm:text-6xl">
+            Compra equity real,{" "}
+            <span className="text-neon-cyan">protegido por hitos.</span>
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="text-off-white/70 max-w-xl font-sans text-lg leading-8">
+            Invierte en startups vía SAFE tokenizado. Tu capital queda en escrow
+            on-chain y se libera solo cuando la startup cumple sus hitos — si
+            falla, recuperas lo que no se liberó.
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="bg-foreground text-background flex h-12 w-full items-center justify-center gap-2 rounded-full px-5 transition-colors hover:bg-[#383838] md:w-[158px] dark:hover:bg-[#ccc]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="h-[14px] w-4 dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] md:w-[158px] dark:border-white/[.145] dark:hover:bg-[#1a1a1a]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+          <div className="mt-4 flex flex-col gap-4 sm:flex-row">
+            <button className="bg-neon-cyan shadow-brutal hover:shadow-brutal-lg border-crt-black text-crt-black border-2 px-6 py-3 font-mono font-bold transition-shadow active:translate-x-1 active:translate-y-1 active:shadow-none">
+              TOKENIZAR_MI_STARTUP
+            </button>
+            <button className="border-off-white/30 hover:border-neon-cyan hover:text-neon-cyan border-2 px-6 py-3 font-mono font-bold transition-colors">
+              EXPLORAR_STARTUPS
+            </button>
+          </div>
+        </section>
+
+        <section className="border-neon-cyan/20 divide-neon-cyan/20 grid grid-cols-2 divide-x divide-y border sm:grid-cols-4 sm:divide-y-0">
+          {[
+            ["Ξ 3,921", "CAPITAL EN ESCROW"],
+            ["47", "STARTUPS TOKENIZADAS"],
+            ["112", "HITOS CUMPLIDOS"],
+            ["0", "RUG PULLS"],
+          ].map(([value, label]) => (
+            <div key={label} className="flex flex-col gap-1 p-6">
+              <span className="text-neon-cyan font-mono text-2xl font-bold">
+                {value}
+              </span>
+              <span className="text-off-white/50 font-mono text-xs tracking-widest">
+                {label}
+              </span>
+            </div>
+          ))}
+        </section>
+
+        <section id="como-funciona" className="flex flex-col gap-8">
+          <h2 className="font-mono text-2xl font-bold tracking-tight">
+            CÓMO_FUNCIONA
+          </h2>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            {steps.map((s) => (
+              <div
+                key={s.n}
+                className="bg-terminal-gray border-neon-cyan/30 shadow-brutal-sm flex flex-col gap-3 border p-6"
+              >
+                <span className="text-muted-teal font-mono text-3xl font-bold">
+                  {s.n}
+                </span>
+                <h3 className="text-neon-cyan font-mono text-lg font-bold">
+                  {s.title}
+                </h3>
+                <p className="text-off-white/70 font-sans text-sm leading-6">
+                  {s.body}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section id="startups" className="flex flex-col gap-8">
+          <div className="flex items-end justify-between">
+            <h2 className="font-mono text-2xl font-bold tracking-tight">
+              STARTUPS_ACTIVAS
+            </h2>
+            <a
+              href="#"
+              className="text-muted-teal hover:text-neon-cyan font-mono text-sm transition-colors"
+            >
+              VER_TODAS →
+            </a>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            {startups.map((s) => {
+              const pct = Math.round((s.raised / s.goal) * 100);
+              const funded = pct >= 100;
+              const escrowLocked = s.goal - s.raised;
+              return (
+                <article
+                  key={s.name}
+                  className="bg-terminal-gray border-neon-cyan/30 shadow-brutal-sm hover:shadow-brutal flex flex-col gap-4 border p-6 transition-shadow"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-teal font-mono text-xs tracking-widest">
+                      [{s.sector}]
+                    </span>
+                    {funded ? (
+                      <span className="text-retro-green font-mono text-xs font-bold">
+                        FUNDED ✓
+                      </span>
+                    ) : (
+                      <span className="text-off-white/40 font-mono text-xs">
+                        {s.token}
+                      </span>
+                    )}
+                  </div>
+
+                  <h3 className="font-mono text-xl font-bold">{s.name}</h3>
+                  <p className="text-off-white/70 font-sans text-sm leading-6">
+                    {s.description}
+                  </p>
+
+                  <span className="text-neon-cyan/80 font-mono text-xs">
+                    OFRECE {s.equityOffered}% EQUITY (SAFE TOKENIZADO)
+                  </span>
+
+                  <div className="flex flex-col gap-2">
+                    <ProgressBar value={pct} />
+                    <div className="flex items-center justify-between font-mono text-xs">
+                      <span className="text-neon-cyan font-bold">
+                        {usd(s.raised)} / {usd(s.goal)}
+                      </span>
+                      <span className="text-off-white/50">
+                        {s.backers} inversores
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="border-off-white/10 flex flex-col gap-2 border-t pt-3">
+                    <span className="text-off-white/40 font-mono text-[11px] tracking-widest">
+                      HITOS DE LIBERACIÓN
+                    </span>
+                    <MilestoneStepper
+                      milestones={s.milestones}
+                      current={s.currentMilestone}
+                    />
+                    <span className="text-off-white/40 font-mono text-[11px]">
+                      {usd(escrowLocked)} bloqueados en escrow
+                    </span>
+                  </div>
+
+                  <button className="hover:bg-neon-cyan hover:text-crt-black border-off-white/30 mt-2 border-2 py-2 font-mono text-sm font-bold transition-colors">
+                    INVERTIR_AHORA
+                  </button>
+                </article>
+              );
+            })}
+          </div>
+        </section>
       </main>
+
+      <footer className="border-neon-cyan/20 border-t">
+        <div className="text-off-white/40 mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 py-8 font-mono text-xs sm:flex-row">
+          <span>© 2026 EQUITY_CHAIN — SECURITY TOKENS + ESCROW ON-CHAIN</span>
+          <span>
+            STATUS:{" "}
+            <span className="text-retro-green">ALL_SYSTEMS_NOMINAL</span>
+          </span>
+        </div>
+      </footer>
     </div>
   );
 }
