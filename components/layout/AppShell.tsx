@@ -1,6 +1,7 @@
 import { type ReactNode } from "react";
 import Link from "next/link";
 import ConnectButton from "@/components/web3/ConnectButton";
+import HeaderNav from "@/components/layout/HeaderNav";
 
 export default function AppShell({ children }: { children: ReactNode }) {
   return (
@@ -9,26 +10,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
       <header className="border-neon-cyan/20 bg-crt-black/90 sticky top-0 z-40 border-b backdrop-blur-sm">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <span className="text-neon-cyan font-mono text-lg font-bold tracking-widest">
+          <Link
+            href="/"
+            className="text-neon-cyan font-mono text-lg font-bold tracking-widest"
+          >
             EQUITY_CHAIN<span className="text-off-white/40">_v0.1</span>
-          </span>
-          <nav className="text-off-white/70 hidden items-center gap-8 font-mono text-sm sm:flex">
-            <Link
-              href="/#startups"
-              className="hover:text-neon-cyan transition-colors"
-            >
-              STARTUPS
-            </Link>
-            <Link
-              href="/#como-funciona"
-              className="hover:text-neon-cyan transition-colors"
-            >
-              CÓMO_FUNCIONA
-            </Link>
-            <a href="#" className="hover:text-neon-cyan transition-colors">
-              DOCS
-            </a>
-          </nav>
+          </Link>
+          <HeaderNav />
           <ConnectButton />
         </div>
       </header>
