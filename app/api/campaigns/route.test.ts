@@ -1,5 +1,6 @@
 /** @jest-environment node */
 
+import { NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prismaMock } from "@/lib/__mocks__/prisma";
 import { GET, POST } from "@/app/api/campaigns/route";
@@ -182,6 +183,10 @@ describe("POST /api/campaigns", () => {
   });
 });
 
+function getRequest(url: string) {
+  return new NextRequest(url);
+}
+
 describe("GET /api/campaigns", () => {
   it("returns active campaigns with the founder alias and the summed investments", async () => {
     prismaMock.campaign.findMany.mockResolvedValue([
@@ -190,13 +195,19 @@ describe("GET /api/campaigns", () => {
         status: "ACTIVE",
         founder: { address: startupProfile.address, username: "acme_founder" },
         investments: [
-          { amount: new Prisma.Decimal(10) },
-          { amount: new Prisma.Decimal(15.5) },
+          {
+            amount: new Prisma.Decimal(10),
+            investorAddress: investorProfile.address,
+          },
+          {
+            amount: new Prisma.Decimal(15.5),
+            investorAddress: investorProfile.address,
+          },
         ],
       },
     ] as never);
 
-    const response = await GET();
+    const response = await GET(getRequest("http://localhost/api/campaigns"));
     const body = await response.json();
 
     expect(response.status).toBe(200);
@@ -207,8 +218,34 @@ describe("GET /api/campaigns", () => {
     });
     expect(body[0].equityOffered).toBe(validPayload.equityOffered);
     expect(body[0].raisedAmount).toBe(25.5);
+    expect(body[0].backers).toBe(1);
     expect(prismaMock.campaign.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { status: "ACTIVE" } }),
+    );
+  });
+
+  it("returns a founder's own campaigns (any status) when ?founder= is set", async () => {
+    prismaMock.campaign.findMany.mockResolvedValue([
+      {
+        ...createdCampaign,
+        founder: { address: startupProfile.address, username: "acme_founder" },
+        investments: [],
+      },
+    ] as never);
+
+    const response = await GET(
+      getRequest(
+        `http://localhost/api/campaigns?founder=${startupProfile.address.toUpperCase()}`,
+      ),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body).toHaveLength(1);
+    expect(prismaMock.campaign.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { founderAddress: startupProfile.address },
+      }),
     );
   });
 });

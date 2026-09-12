@@ -1,33 +1,21 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { normalizeAddress } from "@/lib/address";
 import { createCampaignSchema } from "@/lib/validations/campaign";
+import { getActiveCampaigns, getCampaignsByFounder } from "@/lib/campaigns";
 
-export async function GET() {
-  const campaigns = await prisma.campaign.findMany({
-    where: { status: "ACTIVE" },
-    orderBy: { createdAt: "desc" },
-    include: {
-      founder: { select: { address: true, username: true } },
-      investments: { select: { amount: true } },
-    },
-  });
+// No `?founder=` → the public "STARTUPS_ACTIVAS" feed (ACTIVE only). With it
+// → a founder's own campaigns regardless of status, for the "Mis Startups"
+// tab of their dashboard.
+export async function GET(request: NextRequest) {
+  const founder = request.nextUrl.searchParams.get("founder");
 
-  const body = campaigns.map(({ investments, founder, ...campaign }) => ({
-    ...campaign,
-    goalAmount: campaign.goalAmount.toNumber(),
-    equityOffered: campaign.equityOffered.toNumber(),
-    raisedAmount: investments
-      .reduce(
-        (sum, investment) => sum.add(investment.amount),
-        new Prisma.Decimal(0),
-      )
-      .toNumber(),
-    founder: { address: founder.address, alias: founder.username },
-  }));
+  const campaigns = founder
+    ? await getCampaignsByFounder(normalizeAddress(founder))
+    : await getActiveCampaigns();
 
-  return NextResponse.json(body);
+  return NextResponse.json(campaigns);
 }
 
 export async function POST(request: Request) {
