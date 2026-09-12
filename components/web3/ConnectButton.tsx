@@ -3,15 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import {
-  Briefcase,
-  Check,
-  Copy,
-  LogOut,
-  QrCode,
-  Rocket,
-  User,
-} from "lucide-react";
+import { Briefcase, Check, Copy, LogOut, QrCode, Rocket } from "lucide-react";
 import { useAppKit } from "@reown/appkit/react";
 import { useAccount, useDisconnect } from "wagmi";
 import WalletQrModal from "@/components/web3/WalletQrModal";
@@ -94,15 +86,6 @@ export default function ConnectButton() {
           role="menu"
           className="border-neon-cyan bg-crt-black shadow-brutal absolute top-full right-0 z-[60] mt-2 w-56 border-2 p-1"
         >
-          <Link
-            href="/profile"
-            role="menuitem"
-            className={MENU_ITEM_CLASSES}
-            onClick={() => setIsOpen(false)}
-          >
-            <User className="h-4 w-4" />
-            Ver mi Perfil
-          </Link>
           <Link
             href="/profile?tab=investments"
             role="menuitem"
