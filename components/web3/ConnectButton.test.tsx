@@ -27,12 +27,10 @@ describe("ConnectButton", () => {
   });
 
   it("shows the CONECTAR_WALLET trigger when disconnected and opens the modal on click", async () => {
-    jest
-      .mocked(useAccount)
-      .mockReturnValue({
-        address: undefined,
-        isConnected: false,
-      } as unknown as ReturnType<typeof useAccount>);
+    jest.mocked(useAccount).mockReturnValue({
+      address: undefined,
+      isConnected: false,
+    } as unknown as ReturnType<typeof useAccount>);
 
     const user = userEvent.setup();
     render(<ConnectButton />);
