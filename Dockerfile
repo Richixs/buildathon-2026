@@ -47,14 +47,16 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 RUN groupadd --system --gid 1001 nodejs \
-    && useradd --system --uid 1001 --gid nodejs nextjs
+    && useradd --system --uid 1001 --gid nodejs --create-home --home-dir /home/nextjs nextjs
 
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+# Full node_modules (not just .prisma/@prisma) so the `prisma` CLI binary is
+# available for `prisma migrate deploy` in the init container — otherwise
+# npx tries to download it at runtime and fails (no network / no writable HOME).
+COPY --from=builder /app/node_modules ./node_modules
 
 USER nextjs
 EXPOSE 3000
