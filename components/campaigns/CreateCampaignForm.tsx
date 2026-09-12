@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm, useFieldArray, type SubmitHandler } from "react-hook-form";
+import {
+  useForm,
+  useFieldArray,
+  useWatch,
+  type SubmitHandler,
+} from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAccount } from "wagmi";
@@ -88,7 +93,6 @@ export default function CreateCampaignForm() {
     control,
     handleSubmit,
     reset,
-    watch,
     formState: { errors, isSubmitting },
   } = useForm<CampaignFormValues>({
     resolver: zodResolver(campaignFormSchema),
@@ -107,7 +111,11 @@ export default function CreateCampaignForm() {
     name: "milestones",
   });
 
-  const watchedMilestones = watch("milestones");
+  // `useWatch` (a proper hook subscription) instead of `watch()` (an
+  // escape-hatch method off `useForm()`'s return value) — the React
+  // Compiler can't safely memoize a component around the latter, since it
+  // can't see that the function identity is stable across renders.
+  const watchedMilestones = useWatch({ control, name: "milestones" });
   const totalPercentage = watchedMilestones.reduce(
     (sum, milestone) => sum + (Number(milestone.releasePercentage) || 0),
     0,
