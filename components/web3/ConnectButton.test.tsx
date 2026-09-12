@@ -29,9 +29,10 @@ describe("ConnectButton", () => {
   it("shows the CONECTAR_WALLET trigger when disconnected and opens the modal on click", async () => {
     jest
       .mocked(useAccount)
-      .mockReturnValue({ address: undefined, isConnected: false } as unknown as ReturnType<
-        typeof useAccount
-      >);
+      .mockReturnValue({
+        address: undefined,
+        isConnected: false,
+      } as unknown as ReturnType<typeof useAccount>);
 
     const user = userEvent.setup();
     render(<ConnectButton />);
@@ -124,9 +125,7 @@ describe("ConnectButton", () => {
     render(<ConnectButton />);
 
     await user.click(screen.getByRole("button", { name: /0x1234/i }));
-    await user.click(
-      screen.getByRole("menuitem", { name: /ver código qr/i }),
-    );
+    await user.click(screen.getByRole("menuitem", { name: /ver código qr/i }));
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /cerrar/i }));

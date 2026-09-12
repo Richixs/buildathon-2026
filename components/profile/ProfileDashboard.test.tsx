@@ -53,9 +53,7 @@ describe("ProfileDashboard", () => {
 
     render(<ProfileDashboard />);
 
-    expect(
-      screen.getByText(/obteniendo_datos_onchain/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/obteniendo_datos_onchain/i)).toBeInTheDocument();
   });
 
   it("shows a fallback message when the API returns no profile", async () => {
@@ -121,7 +119,9 @@ describe("ProfileDashboard", () => {
     await user.type(screen.getByLabelText(/nombre legal/i), "Acme Inc.");
 
     mockFetchOnce(startupProfile); // PATCH response
-    await user.click(screen.getByRole("button", { name: /actualizar perfil/i }));
+    await user.click(
+      screen.getByRole("button", { name: /actualizar perfil/i }),
+    );
 
     expect(await screen.findByText(/verified_founder/i)).toBeInTheDocument();
     expect(fetch).toHaveBeenLastCalledWith(
