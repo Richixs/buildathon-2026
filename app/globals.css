@@ -9,11 +9,13 @@
   --color-muted-teal: #45a29e;
   --color-retro-green: #39ff14;
   --color-off-white: #c5c6c7;
+  --color-warning-orange: #ff6b35;
 
   /* Neo-brutalist "arcade cabinet" shadows — usable as shadow-brutal, hover:shadow-brutal, etc. */
   --shadow-brutal-sm: 2px 2px 0px 0px var(--color-neon-cyan);
   --shadow-brutal: 4px 4px 0px 0px var(--color-neon-cyan);
   --shadow-brutal-lg: 6px 6px 0px 0px var(--color-neon-cyan);
+  --shadow-brutal-teal-sm: 2px 2px 0px 0px var(--color-muted-teal);
   --shadow-brutal-teal: 4px 4px 0px 0px var(--color-muted-teal);
   --shadow-brutal-green: 4px 4px 0px 0px var(--color-retro-green);
 }
