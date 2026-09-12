@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Space_Mono, Inter } from "next/font/google";
+import Web3Provider from "@/components/web3/Web3Provider";
 import "./globals.css";
 
 const spaceMono = Space_Mono({
@@ -24,7 +25,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${spaceMono.variable} ${inter.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        <Web3Provider>{children}</Web3Provider>
+      </body>
     </html>
   );
 }
