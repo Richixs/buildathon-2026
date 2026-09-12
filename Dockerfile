@@ -18,6 +18,13 @@ RUN corepack enable && corepack prepare pnpm@12.4.1 --activate
 ARG DATABASE_URL="postgresql://user:password@localhost:5432/db?schema=public"
 ENV DATABASE_URL=${DATABASE_URL}
 
+# NEXT_PUBLIC_* vars are inlined into the client bundle at `next build` time —
+# unlike DATABASE_URL, a k8s Secret/ConfigMap at container runtime can't reach
+# them. Must be passed as a --build-arg by CI. No fallback default: missing it
+# should fail the build loudly (see config/wagmi.ts), not ship silently broken.
+ARG NEXT_PUBLIC_PROJECT_ID
+ENV NEXT_PUBLIC_PROJECT_ID=${NEXT_PUBLIC_PROJECT_ID}
+
 # ---- dependencies -----------------------------------------------------------
 # --ignore-scripts: the prisma schema isn't copied in yet, so `postinstall`
 # (prisma generate) is run explicitly in the stages below instead.
