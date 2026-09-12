@@ -1,3 +1,5 @@
+import ConnectButton from "@/components/web3/ConnectButton";
+
 const steps = [
   {
     n: "01",
@@ -136,9 +138,7 @@ export default function Home() {
               DOCS
             </a>
           </nav>
-          <button className="bg-neon-cyan shadow-brutal-sm hover:shadow-brutal border-crt-black text-crt-black border-2 px-4 py-2 font-mono text-sm font-bold transition-shadow active:translate-x-[2px] active:translate-y-[2px] active:shadow-none">
-            CONECTAR_WALLET
-          </button>
+          <ConnectButton />
         </div>
       </header>
 

@@ -74,6 +74,8 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}
             ${{ env.REGISTRY }}/${{ steps.meta.outputs.image }}:latest
+          build-args: |
+            NEXT_PUBLIC_PROJECT_ID=${{ vars.NEXT_PUBLIC_PROJECT_ID }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
