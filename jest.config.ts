@@ -50,6 +50,12 @@ const config: Config = {
       functions: 85,
       lines: 85,
     },
+    "app/api/campaigns/[id]/route.ts": {
+      statements: 85,
+      branches: 85,
+      functions: 85,
+      lines: 85,
+    },
   },
 };
 
