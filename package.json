@@ -6,9 +6,17 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "postinstall": "prisma generate",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy",
+    "prisma:studio": "prisma studio"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
+    "dotenv": "^17.4.2",
     "next": "16.3.5",
     "react": "19.2.8",
     "react-dom": "19.2.8"
@@ -20,6 +28,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
+    "prisma": "^7.10.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

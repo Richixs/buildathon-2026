@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pollar_track
+      POSTGRES_PASSWORD: pollar_track
+      POSTGRES_DB: pollar_track
+    ports:
+      - "5432:5432"
+    volumes:
+      # Postgres 18's official image moved the VOLUME mount point up to the
+      # parent dir; PGDATA now defaults to a versioned subdir under it
+      # (/var/lib/postgresql/18/docker), which makes future major-version
+      # upgrades able to use pg_upgrade's faster --link mode. Mounting
+      # /var/lib/postgresql/data here (the pre-18 default) would silently
+      # miss the actual data directory.
+      - db_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pollar_track -d pollar_track"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      target: dev
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://pollar_track:pollar_track@db:5432/pollar_track?schema=public
+      NODE_ENV: development
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db_data:
