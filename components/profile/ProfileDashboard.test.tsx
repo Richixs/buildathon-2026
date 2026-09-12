@@ -36,6 +36,21 @@ function mockFetchOnce(body: unknown, ok = true) {
   } as Response);
 }
 
+// ProfileDashboard fetches the profile first, then (only if one was found)
+// its investments and campaigns in parallel — queue all three so the
+// mocked fetch calls line up in that order.
+function mockProfileFound(
+  profile: unknown,
+  {
+    investments = [],
+    startups = [],
+  }: { investments?: unknown[]; startups?: unknown[] } = {},
+) {
+  mockFetchOnce(profile);
+  mockFetchOnce(investments);
+  mockFetchOnce(startups);
+}
+
 async function goToStartupsTab(user: ReturnType<typeof userEvent.setup>) {
   await user.click(
     await screen.findByRole("button", { name: /mis_startups/i }),
@@ -82,7 +97,7 @@ describe("ProfileDashboard", () => {
   });
 
   it("defaults to the Mis Inversiones tab", async () => {
-    mockFetchOnce(investorProfile);
+    mockProfileFound(investorProfile);
 
     render(<ProfileDashboard />);
 
@@ -93,7 +108,7 @@ describe("ProfileDashboard", () => {
 
   it("switches to Mis Startups automatically when the URL has ?tab=startups", async () => {
     mockUseSearchParams.mockReturnValue(new URLSearchParams("tab=startups"));
-    mockFetchOnce(investorProfile);
+    mockProfileFound(investorProfile);
 
     render(<ProfileDashboard />);
 
@@ -107,7 +122,7 @@ describe("ProfileDashboard", () => {
 
   it("renders the investor view with the LANZAR_MI_STARTUP CTA", async () => {
     const user = userEvent.setup();
-    mockFetchOnce(investorProfile);
+    mockProfileFound(investorProfile);
 
     render(<ProfileDashboard />);
     await goToStartupsTab(user);
@@ -122,7 +137,7 @@ describe("ProfileDashboard", () => {
 
   it("opens the upgrade modal when LANZAR_MI_STARTUP is clicked", async () => {
     const user = userEvent.setup();
-    mockFetchOnce(investorProfile);
+    mockProfileFound(investorProfile);
 
     render(<ProfileDashboard />);
     await goToStartupsTab(user);
@@ -135,7 +150,7 @@ describe("ProfileDashboard", () => {
 
   it("closes the upgrade modal when Cancelar is clicked", async () => {
     const user = userEvent.setup();
-    mockFetchOnce(investorProfile);
+    mockProfileFound(investorProfile);
 
     render(<ProfileDashboard />);
     await goToStartupsTab(user);
@@ -149,7 +164,7 @@ describe("ProfileDashboard", () => {
 
   it("persists the upgrade via PATCH and reflects it immediately", async () => {
     const user = userEvent.setup();
-    mockFetchOnce(investorProfile); // GET on mount
+    mockProfileFound(investorProfile); // GET on mount
 
     render(<ProfileDashboard />);
     await goToStartupsTab(user);
@@ -179,7 +194,7 @@ describe("ProfileDashboard", () => {
 
   it("renders the minimalist empty state for a startup with no campaigns", async () => {
     const user = userEvent.setup();
-    mockFetchOnce(startupProfile);
+    mockProfileFound(startupProfile);
 
     render(<ProfileDashboard />);
     await goToStartupsTab(user);
@@ -195,7 +210,7 @@ describe("ProfileDashboard", () => {
 
   it("navigates to /campaigns/create when CREAR_NUEVA_CAMPAÑA is clicked", async () => {
     const user = userEvent.setup();
-    mockFetchOnce(startupProfile);
+    mockProfileFound(startupProfile);
 
     render(<ProfileDashboard />);
     await goToStartupsTab(user);
@@ -207,10 +222,140 @@ describe("ProfileDashboard", () => {
   });
 
   it("shows the VERIFIED_FOUNDER badge for startup profiles", async () => {
-    mockFetchOnce(startupProfile);
+    mockProfileFound(startupProfile);
 
     render(<ProfileDashboard />);
 
     expect(await screen.findByText(/verified_founder/i)).toBeInTheDocument();
+  });
+
+  it("renders real investments fetched from the API, linked to the campaign, with hitos restantes", async () => {
+    mockProfileFound(investorProfile, {
+      investments: [
+        {
+          id: "investment_1",
+          amount: 25,
+          campaign: {
+            id: "campaign_1",
+            title: "NEXUS_LABS",
+            tokenSymbol: "NXUS",
+            status: "ACTIVE",
+            milestones: [{ isCompleted: true }, { isCompleted: false }],
+          },
+        },
+      ],
+    });
+
+    render(<ProfileDashboard />);
+
+    const link = await screen.findByRole("link", { name: /nexus_labs/i });
+    expect(link).toHaveAttribute("href", "/campaigns/campaign_1");
+    expect(screen.getByText("25 HSK invertidos")).toBeInTheDocument();
+    expect(screen.getByText("1/2 hitos restantes")).toBeInTheDocument();
+    expect(screen.getByText("25 HSK")).toBeInTheDocument();
+    expect(screen.getByText("TOTAL INVERTIDO")).toBeInTheDocument();
+    expect(screen.getByText("PROYECTOS FINANCIADOS")).toBeInTheDocument();
+  });
+
+  it("renders real campaigns fetched from the API for a startup founder, with hitos restantes", async () => {
+    const user = userEvent.setup();
+    mockProfileFound(startupProfile, {
+      startups: [
+        {
+          id: "campaign_1",
+          title: "NEXUS_LABS",
+          tokenSymbol: "NXUS",
+          status: "ACTIVE",
+          goalAmount: 100_000,
+          raisedAmount: 25_000,
+          backers: 4,
+          milestones: [{ isCompleted: false }],
+        },
+      ],
+    });
+
+    render(<ProfileDashboard />);
+    await goToStartupsTab(user);
+
+    const link = await screen.findByRole("link", { name: /nexus_labs/i });
+    expect(link).toHaveAttribute("href", "/campaigns/campaign_1");
+    expect(screen.getByText("1/1 hitos restantes")).toBeInTheDocument();
+    expect(screen.getByText("4 inversores")).toBeInTheDocument();
+    expect(screen.getByText("25,000 HSK")).toBeInTheDocument();
+    expect(screen.getByText("TOTAL RECAUDADO")).toBeInTheDocument();
+    expect(screen.getByText("INVERSORES TOTALES")).toBeInTheDocument();
+  });
+
+  it("falls back to empty lists when the investments/startups requests fail", async () => {
+    mockFetchOnce(investorProfile);
+    mockFetchOnce(null, false);
+    mockFetchOnce(null, false);
+
+    render(<ProfileDashboard />);
+
+    expect(
+      await screen.findByText(/todavía no has invertido/i),
+    ).toBeInTheDocument();
+  });
+
+  it("treats a non-positive goal as 0% progress", async () => {
+    const user = userEvent.setup();
+    mockProfileFound(startupProfile, {
+      startups: [
+        {
+          id: "campaign_1",
+          title: "NEXUS_LABS",
+          tokenSymbol: "NXUS",
+          status: "ACTIVE",
+          goalAmount: 0,
+          raisedAmount: 0,
+          backers: 0,
+          milestones: [],
+        },
+      ],
+    });
+
+    render(<ProfileDashboard />);
+    await goToStartupsTab(user);
+
+    const bar = (await screen.findByText("NEXUS_LABS")).closest("a");
+    expect(bar?.querySelector('[style*="width"]')).toHaveStyle({
+      width: "0%",
+    });
+  });
+
+  it("resets and refetches when the connected wallet address changes", async () => {
+    mockProfileFound(investorProfile);
+
+    const { rerender } = render(<ProfileDashboard />);
+    await screen.findByText(/satoshi_dev/i);
+
+    const NEW_ADDRESS = "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd";
+    jest.mocked(useAccount).mockReturnValue({
+      address: NEW_ADDRESS,
+      isConnected: true,
+    } as unknown as ReturnType<typeof useAccount>);
+    mockProfileFound(startupProfile);
+
+    rerender(<ProfileDashboard />);
+
+    expect(await screen.findByText(/acme_founder/i)).toBeInTheDocument();
+    expect(fetch).toHaveBeenCalledWith(`/api/profile?address=${NEW_ADDRESS}`);
+  });
+
+  it("re-syncs the active tab when the URL's ?tab= changes after mount", async () => {
+    mockProfileFound(investorProfile);
+
+    const { rerender } = render(<ProfileDashboard />);
+    expect(
+      await screen.findByText(/todavía no has invertido/i),
+    ).toBeInTheDocument();
+
+    mockUseSearchParams.mockReturnValue(new URLSearchParams("tab=startups"));
+    rerender(<ProfileDashboard />);
+
+    expect(
+      await screen.findByRole("button", { name: /lanzar_mi_startup/i }),
+    ).toBeInTheDocument();
   });
 });
