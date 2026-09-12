@@ -10,3 +10,8 @@ export const useAccount = jest.fn(() => ({
 export const useDisconnect = jest.fn(() => ({
   disconnect: jest.fn(),
 }));
+
+export const useSendTransaction = jest.fn(() => ({
+  sendTransactionAsync: jest.fn(),
+  isPending: false,
+}));

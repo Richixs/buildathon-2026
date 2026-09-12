@@ -55,8 +55,8 @@ describe("ConnectButton", () => {
     const menu = screen.getByRole("menu");
     expect(menu).toBeInTheDocument();
     expect(
-      screen.getByRole("menuitem", { name: /ver mi perfil/i }),
-    ).toBeInTheDocument();
+      screen.queryByRole("menuitem", { name: /ver mi perfil/i }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("menuitem", { name: /copiar dirección/i }),
     ).toBeInTheDocument();
