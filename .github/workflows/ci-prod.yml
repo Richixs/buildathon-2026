@@ -75,7 +75,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     env:
-      IMAGE_TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.image_tag }}
+      IMAGE_TAG: ghcr.io/${{ github.repository }}:${{ needs.build-and-push.outputs.image_tag }}
       DEPLOY_REPO_URL: ${{ vars.DEPLOY_REPO_URL || 'lab.sasxr.com/s-system/deploy.git' }}
     steps:
       - name: Clone deploy repo
