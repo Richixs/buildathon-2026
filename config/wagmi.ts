@@ -16,7 +16,7 @@ export const hashkeyTestnet = defineChain({
   id: 133,
   caipNetworkId: "eip155:133",
   chainNamespace: "eip155",
-  name: "HashKey Chain Testnet",
+  name: "HSKChain Testnet",
   nativeCurrency: { name: "HashKey", symbol: "HSK", decimals: 18 },
   rpcUrls: {
     default: { http: ["https://testnet.hsk.xyz"] },

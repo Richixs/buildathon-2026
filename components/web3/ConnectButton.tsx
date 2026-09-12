@@ -2,22 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import {
-  Briefcase,
-  Check,
-  Copy,
-  LogOut,
-  QrCode,
-  Rocket,
-  User,
-} from "lucide-react";
+import Link from "next/link";
+import { Briefcase, Check, Copy, LogOut, QrCode, Rocket } from "lucide-react";
 import { useAppKit } from "@reown/appkit/react";
 import { useAccount, useDisconnect } from "wagmi";
 import WalletQrModal from "@/components/web3/WalletQrModal";
-
-function shortenAddress(address: string) {
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
-}
+import { shortenAddress } from "@/lib/address";
 
 const TRIGGER_BASE_CLASSES =
   "flex items-center gap-2 border-2 px-4 py-2 font-mono text-sm font-bold transition-all duration-100 active:translate-x-1 active:translate-y-1 active:shadow-none";
@@ -96,33 +86,24 @@ export default function ConnectButton() {
           role="menu"
           className="border-neon-cyan bg-crt-black shadow-brutal absolute top-full right-0 z-[60] mt-2 w-56 border-2 p-1"
         >
-          <button
-            type="button"
-            role="menuitem"
-            className={MENU_ITEM_CLASSES}
-            onClick={() => setIsOpen(false)}
-          >
-            <User className="h-4 w-4" />
-            Ver mi Perfil
-          </button>
-          <button
-            type="button"
+          <Link
+            href="/profile?tab=investments"
             role="menuitem"
             className={MENU_ITEM_CLASSES}
             onClick={() => setIsOpen(false)}
           >
             <Briefcase className="h-4 w-4" />
             Mis Inversiones
-          </button>
-          <button
-            type="button"
+          </Link>
+          <Link
+            href="/profile?tab=startups"
             role="menuitem"
             className={MENU_ITEM_CLASSES}
             onClick={() => setIsOpen(false)}
           >
             <Rocket className="h-4 w-4" />
             Mis Startups
-          </button>
+          </Link>
 
           <div className="bg-off-white/10 my-1 h-px" />
 

@@ -18,6 +18,19 @@
   --shadow-brutal-teal-sm: 2px 2px 0px 0px var(--color-muted-teal);
   --shadow-brutal-teal: 4px 4px 0px 0px var(--color-muted-teal);
   --shadow-brutal-green: 4px 4px 0px 0px var(--color-retro-green);
+
+  /* KITT-style scanner sweep, used by the terminal loader. */
+  --animate-scan: scan 1.3s ease-in-out infinite;
+}
+
+@keyframes scan {
+  0%,
+  100% {
+    left: 0%;
+  }
+  50% {
+    left: 70%;
+  }
 }
 
 /* `inline` because these reference the CSS variables next/font sets on <html> at runtime

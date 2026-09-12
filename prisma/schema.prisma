@@ -5,3 +5,97 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+// address is stored lowercased (see lib/address.ts normalizeAddress) so
+// lookups don't depend on EIP-55 checksum casing.
+// role is a plain string ("investor" | "startup") rather than a Prisma enum
+// to match the frontend's ProfileRole union (components/profile/RegistrationForm.tsx)
+// byte-for-byte and avoid a casing-conversion layer between the two.
+model Profile {
+  address   String   @id
+  username  String
+  bio       String   @default("")
+  link      String?
+  role      String   @default("investor")
+  legalName String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  campaigns   Campaign[]
+  investments Investment[]
+
+  @@map("profiles")
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  FUNDED
+  FAILED
+}
+
+model Campaign {
+  id              String         @id @default(cuid())
+  title           String
+  description     String
+  goalAmount      Decimal        @db.Decimal(18, 6)
+  raisedAmount    Decimal        @default(0) @db.Decimal(18, 6)
+  // % of the company offered for this raise (SAFE terms), e.g. 12.50.
+  equityOffered   Decimal        @db.Decimal(5, 2)
+  // Ticker for this campaign's security token, e.g. "NXUS". Stored
+  // uppercase — see lib/validations/campaign.ts.
+  tokenSymbol     String
+  status          CampaignStatus @default(DRAFT)
+  // Set once the campaign's escrow contract is deployed on HashKey Chain.
+  contractAddress String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  founderAddress String
+  founder        Profile @relation(fields: [founderAddress], references: [address])
+
+  milestones  Milestone[]
+  investments Investment[]
+
+  @@index([founderAddress])
+  @@index([status])
+  @@map("campaigns")
+}
+
+model Milestone {
+  id                String   @id @default(cuid())
+  title             String
+  targetDate        DateTime
+  isCompleted       Boolean  @default(false)
+  // % of the campaign's escrowed capital released when this milestone is
+  // marked complete. The sum across a campaign's milestones must equal 100
+  // — enforced in lib/validations/campaign.ts, not at the DB level, since
+  // Postgres can't easily check an aggregate across sibling rows.
+  releasePercentage Int
+  createdAt         DateTime @default(now())
+
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@map("milestones")
+}
+
+// Off-chain record of an on-chain investment — txHash is the source of
+// truth and must be unique so the same transaction can't be recorded twice.
+model Investment {
+  id        String   @id @default(cuid())
+  amount    Decimal  @db.Decimal(18, 6)
+  txHash    String   @unique
+  createdAt DateTime @default(now())
+
+  investorAddress String
+  investor        Profile @relation(fields: [investorAddress], references: [address])
+
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+
+  @@index([campaignId])
+  @@index([investorAddress])
+  @@map("investments")
+}

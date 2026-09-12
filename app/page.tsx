@@ -1,4 +1,6 @@
-import ConnectButton from "@/components/web3/ConnectButton";
+import Link from "next/link";
+import AppShell from "@/components/layout/AppShell";
+import { getPlatformStats } from "@/lib/campaigns";
 
 const steps = [
   {
@@ -18,287 +20,168 @@ const steps = [
   },
 ];
 
-const startups = [
-  {
-    sector: "FINTECH",
-    name: "NEXUS_LABS",
-    token: "$NXS",
-    description:
-      "Infraestructura de pagos cross-border para remesas en Latinoamérica.",
-    equityOffered: 10,
-    goal: 100_000,
-    raised: 62_000,
-    backers: 84,
-    milestones: ["MVP", "1K usuarios", "Serie A"],
-    currentMilestone: 1,
-  },
-  {
-    sector: "SAAS",
-    name: "GHOST_STACK",
-    token: "$GHST",
-    description: "Observabilidad self-hosted con cero telemetría a terceros.",
-    equityOffered: 8,
-    goal: 60_000,
-    raised: 60_000,
-    backers: 156,
-    milestones: ["Beta cerrada", "Beta pública", "$10K MRR"],
-    currentMilestone: 2,
-  },
-  {
-    sector: "GAMEFI",
-    name: "ARCADE.SOL",
-    token: "$ARC",
-    description:
-      "Torneos NFT con puntuaciones verificables y premios en cadena.",
-    equityOffered: 12,
-    goal: 150_000,
-    raised: 28_500,
-    backers: 41,
-    milestones: ["Demo jugable", "500 jugadores activos", "Publisher deal"],
-    currentMilestone: 0,
-  },
-];
+// Otherwise Next statically prerenders this page at build time and the
+// stats strip (queried directly from Postgres, not via fetch()) would go
+// stale until the next deploy — same "live totals" principle as
+// GET /api/campaigns.
+export const dynamic = "force-dynamic";
 
-const usd = (n: number) => `$${n.toLocaleString("en-US")}`;
+export default async function Home() {
+  const stats = await getPlatformStats();
 
-function ProgressBar({ value }: { value: number }) {
+  const statTiles: [string, string][] = [
+    [
+      `Ξ ${stats.totalInvestedHsk.toLocaleString("en-US")}`,
+      "CAPITAL EN ESCROW",
+    ],
+    [String(stats.campaignsCount), "STARTUPS TOKENIZADAS"],
+    [String(stats.milestonesCompleted), "HITOS CUMPLIDOS"],
+    // Not derived from any query — there's no mechanism in this system by
+    // which a founder can withdraw escrowed funds outside milestone
+    // releases, so this is always true by construction, not a placeholder.
+    ["0", "RUG PULLS"],
+  ];
+
   return (
-    <div className="border-neon-cyan/30 bg-crt-black h-3 w-full border">
-      <div
-        className="bg-retro-green h-full"
-        style={{ width: `${Math.min(value, 100)}%` }}
-      />
-    </div>
-  );
-}
-
-function MilestoneStepper({
-  milestones,
-  current,
-}: {
-  milestones: string[];
-  current: number;
-}) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      {milestones.map((m, i) => {
-        const done = i < current;
-        const active = i === current;
-        return (
-          <div key={m} className="flex items-center gap-2 font-mono text-xs">
-            <span
-              className={
-                done
-                  ? "text-retro-green"
-                  : active
-                    ? "text-neon-cyan"
-                    : "text-off-white/30"
-              }
-            >
-              {done ? "[✓]" : active ? "[▸]" : "[ ]"}
-            </span>
-            <span
-              className={
-                done || active ? "text-off-white" : "text-off-white/30"
-              }
-            >
-              {m}
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-export default function Home() {
-  return (
-    <div className="bg-crt-black text-off-white relative flex flex-1 flex-col">
-      <div className="bg-crt-scanlines pointer-events-none fixed inset-0 z-50" />
-
-      <header className="border-neon-cyan/20 bg-crt-black/90 sticky top-0 z-40 border-b backdrop-blur-sm">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <span className="text-neon-cyan font-mono text-lg font-bold tracking-widest">
-            EQUITY_CHAIN<span className="text-off-white/40">_v0.1</span>
-          </span>
-          <nav className="text-off-white/70 hidden items-center gap-8 font-mono text-sm sm:flex">
-            <a
-              href="#startups"
-              className="hover:text-neon-cyan transition-colors"
-            >
-              STARTUPS
-            </a>
-            <a
-              href="#como-funciona"
-              className="hover:text-neon-cyan transition-colors"
-            >
-              CÓMO_FUNCIONA
-            </a>
-            <a href="#" className="hover:text-neon-cyan transition-colors">
-              DOCS
-            </a>
-          </nav>
-          <ConnectButton />
+    <AppShell>
+      <section className="flex flex-col items-start gap-6">
+        <span className="text-retro-green border-retro-green/40 bg-retro-green/10 border px-2 py-1 font-mono text-xs tracking-widest">
+          ● SECURITY TOKENS RESPALDADOS POR ESCROW
+        </span>
+        <h1 className="max-w-2xl font-mono text-4xl leading-tight font-bold tracking-tight sm:text-6xl">
+          Compra equity real,{" "}
+          <span className="text-neon-cyan">protegido por hitos.</span>
+        </h1>
+        <p className="text-off-white/70 max-w-xl font-sans text-lg leading-8">
+          Invierte en startups vía SAFE tokenizado. Tu capital queda en escrow
+          on-chain y se libera solo cuando la startup cumple sus hitos — si
+          falla, recuperas lo que no se liberó.
+        </p>
+        <div className="mt-4 flex flex-col gap-4 sm:flex-row">
+          <Link
+            href="/campaigns/create"
+            className="bg-neon-cyan shadow-brutal hover:shadow-brutal-lg border-crt-black text-crt-black border-2 px-6 py-3 text-center font-mono font-bold transition-shadow active:translate-x-1 active:translate-y-1 active:shadow-none"
+          >
+            TOKENIZAR_MI_STARTUP
+          </Link>
+          <Link
+            href="/startups"
+            className="border-off-white/30 hover:border-neon-cyan hover:text-neon-cyan border-2 px-6 py-3 text-center font-mono font-bold transition-colors"
+          >
+            EXPLORAR_STARTUPS
+          </Link>
         </div>
-      </header>
+      </section>
 
-      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-24 px-6 py-20">
-        <section className="flex flex-col items-start gap-6">
-          <span className="text-retro-green border-retro-green/40 bg-retro-green/10 border px-2 py-1 font-mono text-xs tracking-widest">
-            ● SECURITY TOKENS RESPALDADOS POR ESCROW
-          </span>
-          <h1 className="max-w-2xl font-mono text-4xl leading-tight font-bold tracking-tight sm:text-6xl">
-            Compra equity real,{" "}
-            <span className="text-neon-cyan">protegido por hitos.</span>
-          </h1>
-          <p className="text-off-white/70 max-w-xl font-sans text-lg leading-8">
-            Invierte en startups vía SAFE tokenizado. Tu capital queda en escrow
-            on-chain y se libera solo cuando la startup cumple sus hitos — si
-            falla, recuperas lo que no se liberó.
-          </p>
-          <div className="mt-4 flex flex-col gap-4 sm:flex-row">
-            <button className="bg-neon-cyan shadow-brutal hover:shadow-brutal-lg border-crt-black text-crt-black border-2 px-6 py-3 font-mono font-bold transition-shadow active:translate-x-1 active:translate-y-1 active:shadow-none">
-              TOKENIZAR_MI_STARTUP
-            </button>
-            <button className="border-off-white/30 hover:border-neon-cyan hover:text-neon-cyan border-2 px-6 py-3 font-mono font-bold transition-colors">
-              EXPLORAR_STARTUPS
-            </button>
+      <section className="border-neon-cyan/20 divide-neon-cyan/20 grid grid-cols-2 divide-x divide-y border sm:grid-cols-4 sm:divide-y-0">
+        {statTiles.map(([value, label]) => (
+          <div key={label} className="flex flex-col gap-1 p-6">
+            <span className="text-neon-cyan font-mono text-2xl font-bold">
+              {value}
+            </span>
+            <span className="text-off-white/50 font-mono text-xs tracking-widest">
+              {label}
+            </span>
           </div>
-        </section>
+        ))}
+      </section>
 
-        <section className="border-neon-cyan/20 divide-neon-cyan/20 grid grid-cols-2 divide-x divide-y border sm:grid-cols-4 sm:divide-y-0">
-          {[
-            ["Ξ 3,921", "CAPITAL EN ESCROW"],
-            ["47", "STARTUPS TOKENIZADAS"],
-            ["112", "HITOS CUMPLIDOS"],
-            ["0", "RUG PULLS"],
-          ].map(([value, label]) => (
-            <div key={label} className="flex flex-col gap-1 p-6">
-              <span className="text-neon-cyan font-mono text-2xl font-bold">
-                {value}
+      <section id="como-funciona" className="flex flex-col gap-8">
+        <h2 className="font-mono text-2xl font-bold tracking-tight">
+          CÓMO_FUNCIONA
+        </h2>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          {steps.map((s) => (
+            <div
+              key={s.n}
+              className="bg-terminal-gray border-neon-cyan/30 shadow-brutal-sm flex flex-col gap-3 border p-6"
+            >
+              <span className="text-muted-teal font-mono text-3xl font-bold">
+                {s.n}
               </span>
-              <span className="text-off-white/50 font-mono text-xs tracking-widest">
-                {label}
-              </span>
+              <h3 className="text-neon-cyan font-mono text-lg font-bold">
+                {s.title}
+              </h3>
+              <p className="text-off-white/70 font-sans text-sm leading-6">
+                {s.body}
+              </p>
             </div>
           ))}
-        </section>
-
-        <section id="como-funciona" className="flex flex-col gap-8">
-          <h2 className="font-mono text-2xl font-bold tracking-tight">
-            CÓMO_FUNCIONA
-          </h2>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-            {steps.map((s) => (
-              <div
-                key={s.n}
-                className="bg-terminal-gray border-neon-cyan/30 shadow-brutal-sm flex flex-col gap-3 border p-6"
-              >
-                <span className="text-muted-teal font-mono text-3xl font-bold">
-                  {s.n}
-                </span>
-                <h3 className="text-neon-cyan font-mono text-lg font-bold">
-                  {s.title}
-                </h3>
-                <p className="text-off-white/70 font-sans text-sm leading-6">
-                  {s.body}
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section id="startups" className="flex flex-col gap-8">
-          <div className="flex items-end justify-between">
-            <h2 className="font-mono text-2xl font-bold tracking-tight">
-              STARTUPS_ACTIVAS
-            </h2>
-            <a
-              href="#"
-              className="text-muted-teal hover:text-neon-cyan font-mono text-sm transition-colors"
-            >
-              VER_TODAS →
-            </a>
-          </div>
-
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-            {startups.map((s) => {
-              const pct = Math.round((s.raised / s.goal) * 100);
-              const funded = pct >= 100;
-              const escrowLocked = s.goal - s.raised;
-              return (
-                <article
-                  key={s.name}
-                  className="bg-terminal-gray border-neon-cyan/30 shadow-brutal-sm hover:shadow-brutal flex flex-col gap-4 border p-6 transition-shadow"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-teal font-mono text-xs tracking-widest">
-                      [{s.sector}]
-                    </span>
-                    {funded ? (
-                      <span className="text-retro-green font-mono text-xs font-bold">
-                        FUNDED ✓
-                      </span>
-                    ) : (
-                      <span className="text-off-white/40 font-mono text-xs">
-                        {s.token}
-                      </span>
-                    )}
-                  </div>
-
-                  <h3 className="font-mono text-xl font-bold">{s.name}</h3>
-                  <p className="text-off-white/70 font-sans text-sm leading-6">
-                    {s.description}
-                  </p>
-
-                  <span className="text-neon-cyan/80 font-mono text-xs">
-                    OFRECE {s.equityOffered}% EQUITY (SAFE TOKENIZADO)
-                  </span>
-
-                  <div className="flex flex-col gap-2">
-                    <ProgressBar value={pct} />
-                    <div className="flex items-center justify-between font-mono text-xs">
-                      <span className="text-neon-cyan font-bold">
-                        {usd(s.raised)} / {usd(s.goal)}
-                      </span>
-                      <span className="text-off-white/50">
-                        {s.backers} inversores
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="border-off-white/10 flex flex-col gap-2 border-t pt-3">
-                    <span className="text-off-white/40 font-mono text-[11px] tracking-widest">
-                      HITOS DE LIBERACIÓN
-                    </span>
-                    <MilestoneStepper
-                      milestones={s.milestones}
-                      current={s.currentMilestone}
-                    />
-                    <span className="text-off-white/40 font-mono text-[11px]">
-                      {usd(escrowLocked)} bloqueados en escrow
-                    </span>
-                  </div>
-
-                  <button className="hover:bg-neon-cyan hover:text-crt-black border-off-white/30 mt-2 border-2 py-2 font-mono text-sm font-bold transition-colors">
-                    INVERTIR_AHORA
-                  </button>
-                </article>
-              );
-            })}
-          </div>
-        </section>
-      </main>
-
-      <footer className="border-neon-cyan/20 border-t">
-        <div className="text-off-white/40 mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 py-8 font-mono text-xs sm:flex-row">
-          <span>© 2026 EQUITY_CHAIN — SECURITY TOKENS + ESCROW ON-CHAIN</span>
-          <span>
-            STATUS:{" "}
-            <span className="text-retro-green">ALL_SYSTEMS_NOMINAL</span>
-          </span>
         </div>
-      </footer>
-    </div>
+      </section>
+
+      <section id="para-quien-es-esto" className="flex flex-col gap-8">
+        <h2 className="font-mono text-2xl font-bold tracking-tight">
+          PARA_QUIÉN_ES_ESTO
+        </h2>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <div className="border-neon-cyan/30 shadow-brutal-sm flex flex-col gap-4 border p-6">
+            <span className="text-neon-cyan font-mono text-sm font-bold tracking-widest">
+              [ PARA_FUNDADORES ]
+            </span>
+            <ul className="text-off-white/70 flex flex-col gap-3 font-sans text-sm leading-6">
+              <li>
+                <span className="text-retro-green">→</span> Levanta capital sin
+                ceder el 100% por adelantado: el escrow libera fondos a medida
+                que cumples hitos, no antes.
+              </li>
+              <li>
+                <span className="text-retro-green">→</span> Tu ronda queda
+                tokenizada y visible en{" "}
+                <Link href="/startups" className="text-neon-cyan underline">
+                  /startups
+                </Link>{" "}
+                para cualquier inversor con wallet.
+              </li>
+              <li>
+                <span className="text-retro-green">→</span> Cero papeleo legal
+                tradicional para empezar a recibir compromisos de inversión.
+              </li>
+            </ul>
+          </div>
+
+          <div className="border-neon-cyan/30 shadow-brutal-sm flex flex-col gap-4 border p-6">
+            <span className="text-neon-cyan font-mono text-sm font-bold tracking-widest">
+              [ PARA_INVERSORES ]
+            </span>
+            <ul className="text-off-white/70 flex flex-col gap-3 font-sans text-sm leading-6">
+              <li>
+                <span className="text-retro-green">→</span> Tu capital no se
+                entrega de golpe: si la startup no cumple, lo que no se liberó
+                vuelve a ti.
+              </li>
+              <li>
+                <span className="text-retro-green">→</span> Sigues el avance
+                hito por hito desde tu propio panel, no por un reporte
+                trimestral.
+              </li>
+              <li>
+                <span className="text-retro-green">→</span> Cada inversión queda
+                registrada con un hash de transacción verificable on-chain.
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section
+        id="startups"
+        className="border-neon-cyan/30 bg-terminal-gray shadow-brutal-sm flex flex-col items-center gap-4 border p-10 text-center"
+      >
+        <h2 className="font-mono text-2xl font-bold tracking-tight">
+          ¿LISTO PARA INVERTIR?
+        </h2>
+        <p className="text-off-white/70 max-w-xl font-sans text-sm leading-6">
+          Mira todas las startups que están levantando capital ahora mismo, con
+          sus hitos y el escrow bloqueado de cada una.
+        </p>
+        <Link
+          href="/startups"
+          className="bg-neon-cyan text-crt-black border-crt-black hover:shadow-brutal border-2 px-6 py-3 font-mono font-bold transition-shadow"
+        >
+          VER_STARTUPS_ACTIVAS →
+        </Link>
+      </section>
+    </AppShell>
   );
 }
