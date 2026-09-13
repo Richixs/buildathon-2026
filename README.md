@@ -2,78 +2,153 @@
 
 Crowdfunding de equity tokenizado (SAFE) sobre **HashKey Chain** (HSK). El
 capital del inversor queda en un escrow on-chain y se libera a la startup
-solo cuando se cumplen hitos. Si la ronda no se llena o la campaña se aborta,
-el inversor reclama un reembolso pro-rata de lo que quede en el contrato.
+solo cuando se cumplen hitos. Si la ronda no se llena o la campaña se
+cancela, el inversor reclama un reembolso pro-rata de lo que quede en el
+contrato.
 
-Este README es la fuente de verdad del repo para humanos y para Claude.
-Léelo antes de tocar código. El stack Next.js de este proyecto **no** es el
-de tu training data — ver `AGENTS.md` y `node_modules/next/dist/docs/`.
-
-**Estado real (2026-09-13):** app y contratos están **cableados de punta a
-punta**. El founder despliega su `EquityEscrow` desde su wallet vía la
-factory, el inversor llama a `escrow.invest()`, y la API verifica cada tx
-on-chain antes de escribir Postgres. Hitos, cancelación admin, expiración y
-reembolsos tienen UI.
-
-**Lo único que falta para el demo en testnet es operativo:** desplegar
-`EquityEscrowFactory` en HashKey Testnet (hace falta una `PRIVATE_KEY` con
-HSK, que este repo no tiene ni debe tener) y poner su address en
-`NEXT_PUBLIC_ESCROW_FACTORY_ADDRESS`. Sin eso, las campañas se guardan como
-`DRAFT` y no se pueden activar. La migración
-`20260913120000_wire_escrow_onchain` tampoco se aplicó a ninguna base
-desde esta sesión.
+> El stack Next.js de este proyecto **no** es el de tu training data si sos
+> un agente — ver `AGENTS.md` y `node_modules/next/dist/docs/` antes de
+> tocar código.
 
 ---
 
-## Para Claude — restricciones duras
+## Características
 
-- Responde en **español**. UI y copy de producto también en español.
-- **No** mezcles el toolchain de `contracts/` con el de la raíz. La raíz es
-  pnpm + Next + Jest + Prettier + ESLint. `contracts/` es npm + Hardhat +
-  Mocha/chai y está excluido de `tsconfig`, `eslint`, `prettier` y `jest`.
-  El único puente es `contracts/scripts/export-abis.js` → `lib/abi/`.
-- **No** escribas exploits, PoCs ofensivos ni procedimientos de ataque.
-- Antes de escribir código Next.js, lee la guía relevante en
-  `node_modules/next/dist/docs/` (Next 16, App Router, React 19).
-- No inventes columnas, env vars, ABIs ni addresses. Si falta, dilo.
-- El escrow usa **HSK nativo** (`payable` / `msg.value`), no USDC.
-- **Nunca confíes en montos, addresses ni status que mande el cliente.**
-  Las rutas reciben un `txHash` (o un id) y leen la verdad de la chain con
-  `lib/escrow/server.ts`. `Campaign.status`, `raisedAmount`,
-  `escrowBalance`, `Milestone.isCompleted` e `Investment.refundedAt` solo
-  los escriben `POST /api/campaigns/[id]/activate` y `lib/escrow/sync.ts`.
-- Si cambias Solidity: compila, corre `export-abis.js` y commitea
-  `lib/abi/`. CI falla si no coinciden.
-- Lecturas "al último bloque" con viem: `getBlockNumber({ cacheTime: 0 })`.
-  Sin eso viem reusa el bloque ~4 s y un sync post-tx persiste estado viejo
-  (lo detectó el e2e).
-- No hay auth de sesión: `POST /api/campaigns` y `/api/investments` confían
-  en `walletAddress` del body para _identificar_ el perfil. Las rutas que
-  cambian estado on-chain no dependen de eso (la tx prueba quién firmó).
-  No "arregles" la auth de paso a menos que sea el ticket.
+- **Alta de campañas por startups**, con hitos de liberación de fondos
+  configurables (`%` por hito, suman 100).
+- **Escrow on-chain por campaña**: cada campaña tiene su propio contrato
+  `EquityEscrow`, desplegado por el founder desde su wallet.
+- **Inversión en HSK nativo**: el inversor manda `invest()` con `value` y
+  recibe tokens SAFE (`EquityToken`) 1:1 con lo invertido.
+- **Liberación de fondos por hitos**: la startup (o el admin) libera cada
+  hito una vez alcanzado; el resto queda custodiado.
+- **Cancelación y reembolso**: el admin puede cancelar una ronda activa, y
+  cualquiera puede marcar como fallida una ronda vencida sin llenar; en
+  ambos casos el inversor reclama su reembolso pro-rata.
+- **Verificación estricta on-chain**: la API nunca confía en montos,
+  addresses o status enviados por el cliente — siempre lee la transacción
+  y el estado del contrato antes de escribir en la base de datos.
+- **Sincronización automática**: si el estado en Postgres difiere del
+  estado real del contrato (status, recaudado, custodiado, hitos), la app
+  dispara una reconciliación antes de mostrar datos desactualizados.
+- **Perfil de usuario** con dos roles (`investor` / `startup`), historial
+  de inversiones con balance de tokens por campaña, y panel de campañas
+  propias para founders.
+- **UI en español, tono terminal/CRT** (`DESPLEGAR_CAMPAÑA`,
+  `INVERTIR_AHORA`, `LIBERAR_HITO`).
 
 ---
 
-## Stack
+## Stack tecnológico
 
-| Capa                 | Tech                                                     |
-| -------------------- | -------------------------------------------------------- |
-| App                  | Next.js 16.3 (App Router), React 19, Tailwind 4, TS      |
-| Web3 cliente         | wagmi 3 + viem 2 + Reown AppKit (`@reown/appkit`)        |
-| Web3 servidor        | viem `createPublicClient` (`lib/escrow/server.ts`)       |
-| Redes                | HashKey Testnet `133`, Mainnet `177` (`config/wagmi.ts`) |
-| DB                   | PostgreSQL 18 + Prisma 7 (`@prisma/adapter-pg`)          |
-| Contratos            | Solidity 0.8.24, OpenZeppelin 5, Hardhat 2 (subproyecto) |
-| Tests app            | Jest + Testing Library — 155 tests + 4 e2e opt-in        |
-| Tests contratos      | Mocha/chai in-memory (12 tests)                          |
-| CI                   | lint + Jest; Hardhat + check de ABIs + e2e en nodo local |
-| Package manager raíz | `pnpm@12.4.1`                                            |
+| Capa                 | Tech                                                      |
+| -------------------- | ---------------------------------------------------------- |
+| App                  | Next.js 16.3 (App Router), React 19, Tailwind 4, TypeScript |
+| Web3 cliente         | wagmi 3 + viem 2 + Reown AppKit (`@reown/appkit`)           |
+| Web3 servidor        | viem `createPublicClient` (`lib/escrow/server.ts`)          |
+| Redes                | HashKey Testnet `133`, Mainnet `177` (`config/wagmi.ts`)    |
+| Base de datos        | PostgreSQL 18 + Prisma 7 (`@prisma/adapter-pg`)             |
+| Contratos            | Solidity 0.8.24, OpenZeppelin 5, Hardhat 2 (subproyecto)    |
+| Tests app            | Jest + Testing Library — 155 tests + 4 e2e opt-in           |
+| Tests contratos      | Mocha/chai in-memory (12 tests)                             |
+| CI                   | lint + Jest; Hardhat + verificación de ABIs + e2e en nodo local |
+| Package manager raíz | `pnpm@12.4.1`                                               |
 
 Nombre npm de la app: `buildathon-pollar-track`. Marca: `EQUITY_CHAIN`.
 
 ---
 
-## Estructura
+## Arquitectura e integración técnica
+
+El repo tiene **dos toolchains separados** que no se mezclan:
+
+- **Raíz** — pnpm + Next.js + Jest + Prettier + ESLint. Es la app web.
+- **`contracts/`** — npm + Hardhat + Mocha/chai. Está excluido de
+  `tsconfig`, `eslint`, `prettier` y `jest` de la raíz.
+- El único puente entre ambos es `contracts/scripts/export-abis.js`, que
+  genera los ABIs consumidos por la app en `lib/abi/`. Si cambia un
+  contrato Solidity hay que compilar, correr ese script y commitear
+  `lib/abi/`; CI falla si no coinciden.
+
+### Cómo se integran app y contratos
+
+1. **Deploy del escrow por campaña.** El founder llama a
+   `EquityEscrowFactory.createCampaign(...)` desde su propia wallet — no
+   hay wallet de backend. La factory despliega un `EquityEscrow` nuevo
+   (`msg.sender` de la tx = startup) y un `EquityToken` asociado. El
+   admin/oracle de cada escrow es el `owner()` de la factory, un rol
+   distinto del founder.
+2. **Verificación server-side de cada transacción.** La API nunca recibe
+   ni confía en `contractAddress`, montos o status desde el cliente:
+   recibe un `txHash` (o un id) y `lib/escrow/server.ts` lee el receipt y
+   el estado real de la chain antes de tocar Postgres.
+   - `POST /api/campaigns/[id]/activate` verifica que el receipt sea
+     válido, que el evento `CampaignCreated` venga de la factory
+     configurada, que el `startup` coincida con el founder, y que
+     goal/símbolo/bps/porcentajes/duración coincidan con lo guardado en
+     Postgres. Solo entonces la campaña pasa de `DRAFT` a `ACTIVE`.
+   - `POST /api/investments` verifica que el receipt apunte al escrow de
+     la campaña y que exista el evento `Invested(investor)` antes de
+     crear la fila y disparar un sync.
+3. **Sincronización con la chain (`lib/escrow/sync.ts`).** Es la única
+   fuente que puede escribir `Campaign.status`, `raisedAmount`,
+   `escrowBalance`, `Milestone.isCompleted` e `Investment.refundedAt` (la
+   otra excepción es `activate`, que fija el estado inicial). Se dispara
+   después de cada transacción relevante y también al cargar una página
+   si la chain difiere de lo guardado.
+4. **Lecturas siempre al último bloque.** Las lecturas de estado usan
+   `getBlockNumber({ cacheTime: 0 })` con viem — sin eso viem reutiliza el
+   bloque cacheado unos segundos y un sync justo después de una tx puede
+   persistir estado viejo.
+5. **HSK nativo, no un token ERC20/USDC.** El escrow es `payable` y opera
+   con `msg.value`; no tiene `receive()`/`fallback()`, así que un transfer
+   sin `invest()` revierte.
+6. **Alta en dos pasos** (`DRAFT` → `activate` con `txHash`) para no
+   perder la campaña si la wallet rechaza la transacción o esta falla.
+
+### Modelo de datos (Prisma)
+
+Montos en `Decimal(36, 18)` — misma precisión que el wei on-chain.
+
+| Modelo       | Campos clave                                                                                     |
+| ------------ | ------------------------------------------------------------------------------------------------- |
+| `Profile`    | `address` (PK, lowercase), `role` (`"investor"` \| `"startup"`, string plano)                     |
+| `Campaign`   | `status` (`DRAFT`\|`ACTIVE`\|`FUNDED`\|`COMPLETED`\|`FAILED`), `goalAmount`, `raisedAmount`, `escrowBalance`, `equityOffered` (%, on-chain en bps), `tokenSymbol`, `contractAddress` (único), `tokenAddress`, `deployTxHash` (único) |
+| `Milestone`  | `position` (orden de liberación, no `targetDate`), `releasePercentage` (enteros que suman 100), `isCompleted` |
+| `Investment` | `amount` (del evento `Invested`, nunca del cliente), `txHash` (único), `refundedAt`                |
+
+Mapeo de estados `Campaign.status` ↔ `EquityEscrow.Status`:
+
+| Prisma      | Contrato        | Quién lo setea                |
+| ----------- | --------------- | ------------------------------ |
+| `DRAFT`     | — (sin escrow)  | default al crear                |
+| `ACTIVE`    | `Funding` (0)   | `POST .../activate`             |
+| `FUNDED`    | `Active` (1)    | sync (la inversión que llena)   |
+| `COMPLETED` | `Completed` (2) | sync (último hito liberado)     |
+| `FAILED`    | `Failed` (3)    | sync (expiración o cancelación) |
+
+### Contratos (`contracts/`)
+
+- **`EquityToken`** — ERC20, mint/burn solo por su escrow, 1 token = 1 wei
+  invertido.
+- **`EquityEscrow`** (una instancia por campaña) — `invest()`,
+  `markFailedIfExpired()`, `releaseNextMilestone()` (startup o admin),
+  `cancelCampaign(reason)` (solo admin), `claimRefund()`.
+- **`EquityEscrowFactory`** — `createCampaign(...)` despliega escrow +
+  token y emite `CampaignCreated`.
+
+Más detalle en `contracts/README.md`.
+
+### Auth
+
+No hay auth de sesión: `POST /api/campaigns` y `/api/investments` confían
+en el `walletAddress` del body solo para _identificar_ el perfil. Ninguna
+ruta que cambia estado on-chain depende de eso — la transacción firmada es
+la prueba de quién actuó.
+
+---
+
+## Estructura del repo
 
 ```
 app/
@@ -116,53 +191,7 @@ contracts/             Hardhat aislado — ver contracts/README.md
 
 ---
 
-## Modelo de datos (Prisma)
-
-Montos en `Decimal(36, 18)`: misma precisión que el wei on-chain.
-
-`Profile` — `address` PK lowercased. `role` string `"investor" | "startup"`.
-
-`Campaign`
-
-| Campo                    | Notas                                                            |
-| ------------------------ | ---------------------------------------------------------------- |
-| `status`                 | `DRAFT` \| `ACTIVE` \| `FUNDED` \| `COMPLETED` \| `FAILED`       |
-| `goalAmount`             | HSK                                                              |
-| `raisedAmount`           | `EquityEscrow.totalRaised` (sync)                                |
-| `escrowBalance`          | `EquityEscrow.escrowBalance()` (sync) — lo realmente custodiado  |
-| `equityOffered`          | % SAFE, `Decimal(5, 2)`. On-chain va en **bps** (`12.50` → 1250) |
-| `tokenSymbol`            | 3–5 letras A-Z, uppercase                                        |
-| `fundingDurationSeconds` | lo pide el form en días; se pasa a `createCampaign`              |
-| `fundingDeadline`        | leído de la chain al activar                                     |
-| `contractAddress`        | escrow, `@unique`, lo escribe solo `activate`                    |
-| `tokenAddress`           | `EquityToken` del escrow                                         |
-| `deployTxHash`           | tx de `createCampaign`, `@unique`                                |
-
-El DTO usa `raisedAmount` de la columna si hay `contractAddress`; para filas
-viejas sin escrow cae al `SUM(Investment.amount)`.
-
-`Milestone` — `position` = índice en `milestonePercentages` (orden de
-liberación = orden del form, **no** `targetDate`). `@@unique([campaignId,
-position])`. `releasePercentage` enteros que suman 100 (Zod + constructor).
-`isCompleted` lo escribe el sync desde `currentMilestoneIndex`.
-
-`Investment` — `amount` sale del evento `Invested`, no del cliente.
-`txHash` unique. `refundedAt` lo pone el sync cuando
-`investments(investor) == 0` en un escrow `Failed`.
-
-Mapeo de estados:
-
-| Prisma      | EquityEscrow.Status | Quién lo setea                |
-| ----------- | ------------------- | ----------------------------- |
-| `DRAFT`     | — (no hay escrow)   | default al crear              |
-| `ACTIVE`    | `Funding` (0)       | `POST .../activate`           |
-| `FUNDED`    | `Active` (1)        | sync (la inversión que llena) |
-| `COMPLETED` | `Completed` (2)     | sync (último hito liberado)   |
-| `FAILED`    | `Failed` (3)        | sync (expiración o cancel)    |
-
----
-
-## Flujos
+## Flujos de usuario
 
 ```
 Founder (role=startup)
@@ -200,21 +229,21 @@ Perfil
   MIS_STARTUPS    → borradores marcados "ESCROW PENDIENTE"
 ```
 
-Rutas API:
+### Rutas API
 
-| Método | Path                           | Qué hace                                         |
-| ------ | ------------------------------ | ------------------------------------------------ |
-| GET    | `/api/profile?address=`        | perfil o 404                                     |
-| GET    | `/api/profile/[address]`       | igual (la usa `useCheckProfile`)                 |
-| POST   | `/api/profile`                 | alta                                             |
-| PATCH  | `/api/profile`                 | upgrade investor→startup                         |
-| GET    | `/api/campaigns`               | ACTIVE; `?founder=` → todas las del founder      |
-| POST   | `/api/campaigns`               | alta DRAFT; exige perfil `role=startup`          |
-| GET    | `/api/campaigns/[id]`          | detalle                                          |
-| POST   | `/api/campaigns/[id]/activate` | `{txHash}` → verifica deploy → ACTIVE            |
-| POST   | `/api/campaigns/[id]/sync`     | reconcilia con la chain (sin auth, solo lee)     |
-| GET    | `/api/investments?investor=`   | historial (+ `tokenAddress`, `refundedAt`)       |
-| POST   | `/api/investments`             | `{walletAddress, campaignId, txHash}` verificado |
+| Método | Path                            | Qué hace                                          |
+| ------ | -------------------------------- | -------------------------------------------------- |
+| GET    | `/api/profile?address=`          | perfil o 404                                        |
+| GET    | `/api/profile/[address]`         | igual (la usa `useCheckProfile`)                    |
+| POST   | `/api/profile`                   | alta                                                 |
+| PATCH  | `/api/profile`                   | upgrade investor→startup                             |
+| GET    | `/api/campaigns`                 | ACTIVE; `?founder=` → todas las del founder          |
+| POST   | `/api/campaigns`                 | alta DRAFT; exige perfil `role=startup`              |
+| GET    | `/api/campaigns/[id]`            | detalle                                              |
+| POST   | `/api/campaigns/[id]/activate`   | `{txHash}` → verifica deploy → ACTIVE                |
+| POST   | `/api/campaigns/[id]/sync`       | reconcilia con la chain (sin auth, solo lee)         |
+| GET    | `/api/investments?investor=`     | historial (+ `tokenAddress`, `refundedAt`)           |
+| POST   | `/api/investments`                | `{walletAddress, campaignId, txHash}` verificado    |
 
 Códigos de verificación: `409` tx aún no minada / ya registrada / campaña
 sin escrow, `422` la tx no corresponde, `502` RPC caído, `503` factory sin
@@ -222,96 +251,57 @@ configurar.
 
 ---
 
-## Contratos
+## Instalación
 
-Fuente: `contracts/`. Docs: `contracts/README.md`.
-
-- **EquityToken** — ERC20, mint/burn solo por su escrow, 1 token = 1 wei
-  invertido.
-- **EquityEscrow** (una instancia por campaña) — `invest()`,
-  `markFailedIfExpired()`, `releaseNextMilestone()` (startup o admin),
-  `cancelCampaign(reason)` (solo admin), `claimRefund()`. Sin
-  `receive()`/`fallback()`: un transfer pelado revierte.
-- **EquityEscrowFactory** — `createCampaign(...)`: `msg.sender` = startup,
-  admin de cada escrow = `owner()` de la factory. Emite `CampaignCreated`.
-
----
-
-## Verificación (2026-09-13)
-
-| Qué                                     | Resultado                                |
-| --------------------------------------- | ---------------------------------------- |
-| Hardhat in-memory                       | 12/12                                    |
-| Jest (APIs, lib/escrow, forms, perfil)  | 155/155, umbrales de cobertura OK        |
-| e2e app ↔ contratos (nodo Hardhat real) | 4/4                                      |
-| `tsc --noEmit` / ESLint                 | limpios                                  |
-| `next build`                            | OK (13 rutas, incl. `activate` y `sync`) |
-| RPC HashKey Testnet                     | `eth_chainId` = `0x85` (133)             |
-
-El e2e (`lib/escrow/escrow.e2e.test.ts`) despliega la factory y recorre, con
-las mismas funciones que usan las rutas: deploy verificado + rechazo de
-términos alterados → `invest` verificado + rechazo de tx ajena → meta
-alcanzada → hito liberado → cancel admin → refund pro-rata (2.4 HSK quedan)
-→ ronda vencida marcada fallida por un tercero.
-
-**No verificado:** la UI con una wallet real en un browser (los componentes
-están testeados con wagmi mockeado, `EscrowPanel`, `CreateCampaignForm` y
-`DeployEscrowButton` sin tests de UI), la migración contra Postgres real, y
-nada en testnet (sin factory desplegada).
-
----
-
-## Qué queda
-
-### Para el demo
-
-1. **Desplegar la factory en HashKey Testnet** y configurar
-   `NEXT_PUBLIC_ESCROW_FACTORY_ADDRESS` (app, CI `vars`, compose).
-2. `pnpm prisma:deploy` de la migración `wire_escrow_onchain`.
-   Campañas `ACTIVE` viejas sin escrow ya no aceptan inversiones: pasarlas a
-   `DRAFT` a mano si se quieren desplegar.
-3. Probar el flujo en browser con una wallet en testnet.
-
-### Producto / seguridad (fuera del alcance de este cableado)
-
-- **Auth** (SIWE / body firmado) para perfil, alta de campaña y registro
-  de inversión.
-- **Indexer de eventos.** El sync corrige totales, status, hitos y
-  reembolsos, pero si un `invest()` nunca llegó a `POST /api/investments`
-  (y nadie reintentó), esa fila de `Investment` no existe: el total del
-  feed es correcto, el historial del inversor no.
-- **Una sola red de escrow** (`NEXT_PUBLIC_ESCROW_CHAIN_ID`). Soportar
-  factories en 133 y 177 a la vez requiere address por red.
-- El feed `/startups` solo lista `ACTIVE`; las `FUNDED`/`COMPLETED` solo se
-  ven por link o perfil.
-- Founder puede invertir en su propia campaña **llamando al contrato
-  directo** (UI y API lo bloquean; el contrato no).
-- Oracle real de hitos (hoy admin EOA), stablecoin en lugar de HSK nativo,
-  KYC / acreditación / documento SAFE, restricciones de transferencia del
-  token y mercado secundario.
-
----
-
-## Setup local
-
-### App
+Requisitos: Node.js compatible con Next 16, `pnpm@12.4.1`, Docker (o un
+Postgres 18 propio), y para tocar contratos, `npm`.
 
 ```bash
+git clone <este repo>
+cd buildathon-2026
 cp .env.example .env
-# DATABASE_URL, NEXT_PUBLIC_PROJECT_ID (https://cloud.reown.com)
-# NEXT_PUBLIC_ESCROW_CHAIN_ID (133) y NEXT_PUBLIC_ESCROW_FACTORY_ADDRESS
-# ESCROW_RPC_URL opcional (servidor)
+```
 
-docker compose -f compose.dev.yml up -d          # Postgres 18 en :5432
-# o: docker compose up -d                         # db + app (lee ./.env)
+Completar en `.env`:
+
+| Variable                              | Para qué                                                                 |
+| -------------------------------------- | -------------------------------------------------------------------------- |
+| `DATABASE_URL`                        | conexión a Postgres                                                      |
+| `NEXT_PUBLIC_PROJECT_ID`              | project id de Reown AppKit (https://cloud.reown.com)                     |
+| `NEXT_PUBLIC_APP_URL`                 | URL pública de la app (metadata de wallet-connect)                       |
+| `NEXT_PUBLIC_ESCROW_CHAIN_ID`         | `133` (HashKey Testnet) o `177` (Mainnet)                                 |
+| `NEXT_PUBLIC_ESCROW_FACTORY_ADDRESS`  | address de `EquityEscrowFactory`, la imprime `npm run deploy:testnet`     |
+| `ESCROW_RPC_URL`                      | opcional, RPC propio para el servidor (si no, usa el público de la red)  |
+
+```bash
+docker compose -f compose.dev.yml up -d   # Postgres 18 en :5432
+# o: docker compose up -d                 # db + app (lee ./.env)
 
 pnpm install          # postinstall = prisma generate (necesita DATABASE_URL)
-pnpm prisma:migrate   # o pnpm prisma:deploy
-pnpm dev              # http://localhost:3000
+pnpm prisma:migrate   # o pnpm prisma:deploy en un ambiente ya provisionado
 ```
 
 `prisma generate` falla si `DATABASE_URL` no está exportada (no hace falta
-que Postgres responda).
+que Postgres responda para generar el client).
+
+---
+
+## Cómo correr el proyecto
+
+### App en desarrollo
+
+```bash
+pnpm dev              # http://localhost:3000
+```
+
+### Tests de la app
+
+```bash
+pnpm test             # Jest — 155 tests (los e2e se saltan sin env)
+pnpm test:watch
+pnpm lint
+pnpm format:check
+```
 
 ### Contratos
 
@@ -326,8 +316,9 @@ cp .env.example .env                # PRIVATE_KEY con HSK; ADMIN_ADDRESS opciona
 npm run deploy:testnet              # imprime la address de la factory
 ```
 
-En WSL2, si `npm` resuelve a `CMD.EXE` (error HH1 / UNC), usa el invocador
-`node ./node_modules/hardhat/internal/cli/cli.js` también para `run`.
+En WSL2, si `npm` resuelve a `CMD.EXE` (error HH1 / UNC), usar el
+invocador `node ./node_modules/hardhat/internal/cli/cli.js` también para
+`run`.
 
 ### e2e app ↔ contratos
 
@@ -338,15 +329,15 @@ ESCROW_E2E_RPC_URL=http://127.0.0.1:8545 pnpm exec jest lib/escrow/escrow.e2e
 
 ### Scripts raíz
 
-| Script                                                   | Qué                         |
-| -------------------------------------------------------- | --------------------------- |
-| `pnpm dev` / `build` / `start`                           | Next                        |
-| `pnpm test` / `test:watch`                               | Jest (e2e se salta sin env) |
-| `pnpm lint` / `format` / `format:check`                  | ESLint + Prettier           |
-| `pnpm prisma:generate` / `migrate` / `deploy` / `studio` | Prisma                      |
+| Script                                                    | Qué                          |
+| ----------------------------------------------------------- | ------------------------------ |
+| `pnpm dev` / `build` / `start`                             | Next                          |
+| `pnpm test` / `test:watch`                                 | Jest (e2e se salta sin env)    |
+| `pnpm lint` / `format` / `format:check`                    | ESLint + Prettier              |
+| `pnpm prisma:generate` / `migrate` / `deploy` / `studio`   | Prisma                          |
 
 CI PR (`ci.yml`): job `test` (lint + Jest con cobertura) y job `contracts`
-(Hardhat compile+test, `git diff` de `lib/abi`, nodo local + e2e). CI
+(Hardhat compile+test, `git diff` de `lib/abi`, nodo local + e2e). CI en
 `main`: Docker `target: runner` → GHCR con build-args
 `NEXT_PUBLIC_PROJECT_ID`, `NEXT_PUBLIC_APP_URL`,
 `NEXT_PUBLIC_ESCROW_CHAIN_ID`, `NEXT_PUBLIC_ESCROW_FACTORY_ADDRESS` (GitHub
@@ -354,37 +345,71 @@ CI PR (`ci.yml`): job `test` (lint + Jest con cobertura) y job `contracts`
 
 ---
 
-## Convenciones
+## Estado actual (2026-09-13)
 
-- Addresses se **guardan y buscan** en lowercase (`normalizeAddress`).
-- HSK ↔ wei con `hskToWei` / `weiToHsk` (`lib/escrow/config.ts`); display
-  con `formatHsk` / `formatTokens`. Nunca `$`/USD.
-- `tokenSymbol` uppercase en Zod (client y server).
-- Hitos: ≥1, enteros, suman **exactamente** 100 — Zod, form y constructor.
-- Server Components leen Postgres via `lib/campaigns.ts`, sin `fetch`
-  interno. `/` y `/startups` son `force-dynamic`.
-- `process.env` de escrow se lee en tiempo de llamada (testeable).
-- Comentarios de código en inglés. Copy de UI en español, tono terminal
-  (`DESPLEGAR_CAMPAÑA`, `INVERTIR_AHORA`, `LIBERAR_HITO`).
-- Paleta CRT / neon (`globals.css`) — no rediseñar de paso.
-- Umbrales de cobertura ≥ 85 en `jest.config.ts` (incluye `lib/escrow/`,
-  `InvestForm`, `activate` y `sync`).
-- No commitear `.env`, `PRIVATE_KEY`, ni secrets.
+App y contratos están **cableados de punta a punta**: el founder despliega
+su `EquityEscrow` vía la factory, el inversor invierte on-chain, y la API
+verifica cada transacción antes de tocar Postgres. Hitos, cancelación
+admin, expiración y reembolsos tienen UI completa.
+
+| Qué                                       | Resultado                                  |
+| ------------------------------------------- | --------------------------------------------- |
+| Hardhat in-memory                          | 12/12                                        |
+| Jest (APIs, lib/escrow, forms, perfil)     | 155/155, umbrales de cobertura OK             |
+| e2e app ↔ contratos (nodo Hardhat real)    | 4/4                                          |
+| `tsc --noEmit` / ESLint                    | limpios                                      |
+| `next build`                               | OK (13 rutas, incl. `activate` y `sync`)      |
+| RPC HashKey Testnet                        | `eth_chainId` = `0x85` (133)                  |
+
+El e2e (`lib/escrow/escrow.e2e.test.ts`) despliega la factory y recorre,
+con las mismas funciones que usan las rutas: deploy verificado + rechazo
+de términos alterados → `invest` verificado + rechazo de tx ajena → meta
+alcanzada → hito liberado → cancel admin → refund pro-rata (2.4 HSK
+quedan) → ronda vencida marcada fallida por un tercero.
+
+**No verificado todavía:** la UI con una wallet real en un browser (los
+componentes están testeados con wagmi mockeado), la migración contra
+Postgres real, y nada en testnet (sin factory desplegada aún).
+
+**Lo único que falta para el demo en testnet es operativo:** desplegar
+`EquityEscrowFactory` en HashKey Testnet (hace falta una `PRIVATE_KEY` con
+HSK, que este repo no tiene ni debe tener) y poner su address en
+`NEXT_PUBLIC_ESCROW_FACTORY_ADDRESS`. Sin eso, las campañas se guardan como
+`DRAFT` y no se pueden activar. La migración
+`20260913120000_wire_escrow_onchain` tampoco se aplicó todavía a ninguna
+base real.
+
+### Roadmap fuera de este alcance
+
+- **Auth** (SIWE / body firmado) para perfil, alta de campaña y registro
+  de inversión.
+- **Indexer de eventos.** El sync corrige totales, status, hitos y
+  reembolsos, pero si un `invest()` nunca llegó a `POST /api/investments`
+  (y nadie reintentó), esa fila de `Investment` no existe: el total del
+  feed es correcto, el historial del inversor no.
+- **Soporte multi-red simultáneo** (hoy una sola factory por
+  `NEXT_PUBLIC_ESCROW_CHAIN_ID`).
+- El feed `/startups` solo lista `ACTIVE`; las `FUNDED`/`COMPLETED` solo
+  se ven por link o perfil.
+- El founder puede invertir en su propia campaña llamando al contrato
+  directo (UI y API lo bloquean; el contrato no).
+- Oracle real de hitos (hoy admin EOA), stablecoin en lugar de HSK
+  nativo, KYC / acreditación / documento SAFE, restricciones de
+  transferencia del token y mercado secundario.
 
 ---
 
-## Decisiones de diseño que no hay que "corregir" sin ticket
+## Convenciones
 
-- Una factory por red; el founder paga el deploy de _su_ escrow. No hay
-  wallet backend.
-- Admin/oracle = `owner()` de la factory, distinto del founder.
-- Mint 1:1 con HSK, no ponderado por `equityOffered`.
-- HSK nativo, no IERC20.
-- Alta en dos pasos (DRAFT → activate con `txHash`) para no perder la
-  campaña si la wallet rechaza o la tx se cae.
-- Activación y sync verifican contra la chain en lugar de aceptar
-  `contractAddress`/`status` del cliente. `sync` es público porque solo
-  puede acercar Postgres a la verdad.
-- Se eliminó el camino de tesorería (`NEXT_PUBLIC_TREASURY_ADDRESS`): sin
-  escrow no se invierte.
-- `role` como string, no enum Prisma.
+- Addresses se guardan y buscan en lowercase (`normalizeAddress`).
+- HSK ↔ wei con `hskToWei` / `weiToHsk` (`lib/escrow/config.ts`); display
+  con `formatHsk` / `formatTokens`. Nunca `$`/USD.
+- `tokenSymbol` uppercase en Zod (client y server).
+- Hitos: ≥1, enteros, suman exactamente 100 — Zod, form y constructor.
+- Server Components leen Postgres vía `lib/campaigns.ts`, sin `fetch`
+  interno. `/` y `/startups` son `force-dynamic`.
+- Comentarios de código en inglés. Copy de UI en español, tono terminal.
+- Paleta CRT / neon (`globals.css`).
+- Umbrales de cobertura ≥ 85 en `jest.config.ts` (incluye `lib/escrow/`,
+  `InvestForm`, `activate` y `sync`).
+- No commitear `.env`, `PRIVATE_KEY`, ni secrets.
