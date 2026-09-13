@@ -12,7 +12,11 @@ const config: Config = {
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/$1",
   },
-  modulePathIgnorePatterns: ["<rootDir>/.next/"],
+  modulePathIgnorePatterns: ["<rootDir>/.next/", "<rootDir>/contracts/"],
+  // Separate Hardhat sub-project (its own Mocha/chai test runner) — without
+  // this, Jest's default testMatch also picks up contracts/test/*.test.ts
+  // and tries to run Hardhat tests under jsdom, which fails immediately.
+  testPathIgnorePatterns: ["<rootDir>/node_modules/", "<rootDir>/contracts/"],
   // Scoped to the profile module (the part of the codebase this suite
   // covers) rather than `global`, so untested legacy files elsewhere don't
   // fail CI. Raise scope as more of the app gets test coverage.

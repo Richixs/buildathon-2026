@@ -3,3 +3,6 @@ node_modules
 public
 pnpm-lock.yaml
 pnpm-workspace.yaml
+# Separate Hardhat sub-project with its own toolchain/conventions — not part
+# of the Next.js app's lint/format/test scope.
+contracts
