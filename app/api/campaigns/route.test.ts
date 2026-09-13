@@ -56,6 +56,7 @@ const createdCampaign = {
   tokenSymbol: "NXUS",
   status: "DRAFT" as const,
   contractAddress: null,
+  pitchVideoUrl: null,
   founderAddress: startupProfile.address,
   createdAt: now,
   updatedAt: now,
@@ -180,6 +181,47 @@ describe("POST /api/campaigns", () => {
     const response = await POST(postRequest(validPayload));
 
     expect(response.status).toBe(404);
+  });
+
+  it("returns 400 when pitchVideoUrl is not a valid YouTube link", async () => {
+    const response = await POST(
+      postRequest({
+        ...validPayload,
+        pitchVideoUrl: "https://vimeo.com/123456",
+      }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.details.fieldErrors.pitchVideoUrl).toContain(
+      "Debe ser un link válido de YouTube.",
+    );
+  });
+
+  it("stores a valid pitchVideoUrl and defaults it to null when omitted", async () => {
+    prismaMock.profile.findUnique.mockResolvedValue(startupProfile);
+    prismaMock.campaign.create.mockResolvedValue(createdCampaign);
+    prismaMock.milestone.createMany.mockResolvedValue({ count: 2 });
+    prismaMock.campaign.findUniqueOrThrow.mockResolvedValue(createdCampaign);
+
+    await POST(
+      postRequest({
+        ...validPayload,
+        pitchVideoUrl: "https://youtu.be/dQw4w9WgXcQ",
+      }),
+    );
+
+    expect(prismaMock.campaign.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        pitchVideoUrl: "https://youtu.be/dQw4w9WgXcQ",
+      }),
+    });
+
+    await POST(postRequest(validPayload));
+
+    expect(prismaMock.campaign.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ pitchVideoUrl: null }),
+    });
   });
 });
 

@@ -15,6 +15,8 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "coverage/**",
+    // Separate Hardhat sub-project — its own toolchain, not linted here.
+    "contracts/**",
   ]),
 ]);
 

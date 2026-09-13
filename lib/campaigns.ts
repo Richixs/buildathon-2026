@@ -33,6 +33,7 @@ export interface CampaignDTO {
   tokenSymbol: string;
   status: string;
   contractAddress: string | null;
+  pitchVideoUrl: string | null;
   createdAt: Date;
   updatedAt: Date;
   founderAddress: string;

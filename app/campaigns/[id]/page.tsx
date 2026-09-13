@@ -2,6 +2,7 @@ import AppShell from "@/components/layout/AppShell";
 import ProgressBar from "@/components/startup/ProgressBar";
 import MilestoneStepper from "@/components/startup/MilestoneStepper";
 import InvestForm from "@/components/campaigns/InvestForm";
+import PitchVideo from "@/components/campaigns/PitchVideo";
 import { getCampaignById } from "@/lib/campaigns";
 import { shortenAddress } from "@/lib/address";
 
@@ -64,6 +65,8 @@ export default async function CampaignDetailPage({
             OFRECE {campaign.equityOffered}% EQUITY (SAFE TOKENIZADO)
           </span>
         </div>
+
+        {campaign.pitchVideoUrl && <PitchVideo url={campaign.pitchVideoUrl} />}
 
         <div className="bg-terminal-gray border-neon-cyan/30 shadow-brutal-sm flex flex-col gap-3 border p-6">
           <ProgressBar value={pct} />

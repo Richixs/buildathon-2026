@@ -48,6 +48,10 @@ model Campaign {
   status          CampaignStatus @default(DRAFT)
   // Set once the campaign's escrow contract is deployed on HashKey Chain.
   contractAddress String?
+  // YouTube link to the founder's pitch/demo video, shown embedded on the
+  // campaign detail page. Optional — see lib/validations/campaign.ts for
+  // the URL format check.
+  pitchVideoUrl   String?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 

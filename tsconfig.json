@@ -30,5 +30,10 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    // Separate Hardhat sub-project (its own package.json/tsconfig) — not
+    // part of the Next.js app's TypeScript program.
+    "contracts"
+  ]
 }

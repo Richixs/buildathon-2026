@@ -37,6 +37,7 @@ export async function POST(request: Request) {
     equityOffered,
     tokenSymbol,
     contractAddress,
+    pitchVideoUrl,
     milestones,
   } = parsed.data;
   const founderAddress = normalizeAddress(walletAddress);
@@ -69,6 +70,7 @@ export async function POST(request: Request) {
           equityOffered,
           tokenSymbol,
           contractAddress: contractAddress ?? null,
+          pitchVideoUrl: pitchVideoUrl ?? null,
           founderAddress,
         },
       });

@@ -1,0 +1,25 @@
+{
+  "name": "@equity-chain/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:testnet": "hardhat run scripts/deploy-factory.ts --network hskTestnet",
+    "deploy:mainnet": "hardhat run scripts/deploy-factory.ts --network hskMainnet"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-network-helpers": "^1.1.2",
+    "@nomicfoundation/hardhat-toolbox": "^6.1.2",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^24.0.0",
+    "dotenv": "^16.4.5",
+    "hardhat": "^2.29.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.6.1"
+  }
+}
