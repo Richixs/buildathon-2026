@@ -24,6 +24,14 @@ ENV DATABASE_URL=${DATABASE_URL}
 # should fail the build loudly (see config/wagmi.ts), not ship silently broken.
 ARG NEXT_PUBLIC_PROJECT_ID
 ENV NEXT_PUBLIC_PROJECT_ID=${NEXT_PUBLIC_PROJECT_ID}
+# Escrow wiring (lib/escrow/config.ts). An empty factory address builds
+# fine but leaves every campaign stuck in DRAFT.
+ARG NEXT_PUBLIC_ESCROW_CHAIN_ID=133
+ENV NEXT_PUBLIC_ESCROW_CHAIN_ID=${NEXT_PUBLIC_ESCROW_CHAIN_ID}
+ARG NEXT_PUBLIC_ESCROW_FACTORY_ADDRESS
+ENV NEXT_PUBLIC_ESCROW_FACTORY_ADDRESS=${NEXT_PUBLIC_ESCROW_FACTORY_ADDRESS}
+ARG NEXT_PUBLIC_APP_URL
+ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
 
 # ---- dependencies -----------------------------------------------------------
 # --ignore-scripts: the prisma schema isn't copied in yet, so `postinstall`

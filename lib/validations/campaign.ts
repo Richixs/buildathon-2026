@@ -3,7 +3,13 @@ import { isYoutubeUrl } from "@/lib/youtube";
 
 const EVM_ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
 const TOKEN_SYMBOL_REGEX = /^[A-Z]{3,5}$/;
+const TX_HASH_REGEX = /^0x[a-fA-F0-9]{64}$/;
 const TOTAL_RELEASE_PERCENTAGE = 100;
+export const MIN_FUNDING_DAYS = 1;
+export const MAX_FUNDING_DAYS = 365;
+// Keeps String(goalAmount) out of exponent notation (≥1e21), which
+// parseEther can't read — see lib/escrow/config.ts hskToWei.
+export const MAX_GOAL_HSK = 1_000_000_000_000;
 
 export const milestoneInputSchema = z.object({
   title: z
@@ -43,7 +49,8 @@ export const createCampaignSchema = z
     goalAmount: z
       .number()
       .finite()
-      .positive("La meta de recaudación debe ser mayor a 0."),
+      .positive("La meta de recaudación debe ser mayor a 0.")
+      .max(MAX_GOAL_HSK, "La meta de recaudación es demasiado grande."),
     // % of the company offered for this raise (SAFE terms).
     equityOffered: z
       .number()
@@ -63,14 +70,18 @@ export const createCampaignSchema = z
             "El símbolo debe tener entre 3 y 5 letras (A-Z).",
           ),
       ),
-    contractAddress: z
-      .string()
-      .trim()
-      .regex(
-        EVM_ADDRESS_REGEX,
-        "contractAddress no es una dirección EVM válida.",
+    // Passed to EquityEscrowFactory.createCampaign as fundingDurationSeconds.
+    fundingDurationDays: z
+      .number()
+      .int("La duración debe ser un número entero de días.")
+      .min(
+        MIN_FUNDING_DAYS,
+        `La ronda debe durar al menos ${MIN_FUNDING_DAYS} día.`,
       )
-      .optional(),
+      .max(
+        MAX_FUNDING_DAYS,
+        `La ronda no puede durar más de ${MAX_FUNDING_DAYS} días.`,
+      ),
     // Founder's pitch/demo video, embedded on the campaign detail page.
     // Empty string (an untouched optional form field) means "not provided".
     pitchVideoUrl: z
@@ -99,6 +110,15 @@ export const createCampaignSchema = z
       path: ["milestones"],
     },
   );
+
+// Body of POST /api/campaigns/[id]/activate: the factory createCampaign tx.
+// Everything else (escrow address, token, deadline) is read from chain.
+export const activateCampaignSchema = z.object({
+  txHash: z
+    .string()
+    .trim()
+    .regex(TX_HASH_REGEX, "txHash no es un hash de transacción válido."),
+});
 
 export type CreateCampaignInput = z.infer<typeof createCampaignSchema>;
 export type MilestoneInput = z.infer<typeof milestoneInputSchema>;

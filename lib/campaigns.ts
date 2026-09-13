@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma";
 const CAMPAIGN_INCLUDE = {
   founder: { select: { address: true, username: true } },
   investments: { select: { amount: true, investorAddress: true } },
-  milestones: { orderBy: { targetDate: "asc" } },
+  milestones: { orderBy: { position: "asc" } },
 } satisfies Prisma.CampaignInclude;
 
 type CampaignWithRelations = Prisma.CampaignGetPayload<{
@@ -21,6 +21,7 @@ export interface CampaignMilestoneDTO {
   targetDate: Date;
   isCompleted: boolean;
   releasePercentage: number;
+  position: number;
 }
 
 export interface CampaignDTO {
@@ -29,10 +30,15 @@ export interface CampaignDTO {
   description: string;
   goalAmount: number;
   raisedAmount: number;
+  escrowBalance: number;
   equityOffered: number;
   tokenSymbol: string;
   status: string;
+  fundingDurationSeconds: number;
+  fundingDeadline: Date | null;
   contractAddress: string | null;
+  tokenAddress: string | null;
+  deployTxHash: string | null;
   pitchVideoUrl: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -63,7 +69,14 @@ function serializeCampaign(campaign: CampaignWithRelations): CampaignDTO {
     ...rest,
     goalAmount: rest.goalAmount.toNumber(),
     equityOffered: rest.equityOffered.toNumber(),
-    raisedAmount: sumInvested(investments),
+    // Escrow-backed campaigns: `raisedAmount` is EquityEscrow.totalRaised,
+    // synced from chain (lib/escrow/sync.ts), so an invest() whose
+    // POST /api/investments never landed still counts. Pre-escrow rows
+    // fall back to the off-chain bookkeeping.
+    raisedAmount: rest.contractAddress
+      ? rest.raisedAmount.toNumber()
+      : sumInvested(investments),
+    escrowBalance: rest.escrowBalance.toNumber(),
     backers: countBackers(investments),
     founder: { address: founder.address, alias: founder.username },
     milestones,
@@ -102,7 +115,7 @@ export async function getCampaignById(id: string): Promise<CampaignDTO | null> {
 }
 
 export interface PlatformStats {
-  totalInvestedHsk: number;
+  escrowBalanceHsk: number;
   campaignsCount: number;
   milestonesCompleted: number;
 }
@@ -110,16 +123,15 @@ export interface PlatformStats {
 // Powers the home page's stats strip — real aggregates instead of the
 // placeholder numbers that used to live there.
 export async function getPlatformStats(): Promise<PlatformStats> {
-  const [investedTotal, campaignsCount, milestonesCompleted] =
-    await Promise.all([
-      prisma.investment.aggregate({ _sum: { amount: true } }),
-      prisma.campaign.count(),
-      prisma.milestone.count({ where: { isCompleted: true } }),
-    ]);
+  const [escrowTotal, campaignsCount, milestonesCompleted] = await Promise.all([
+    prisma.campaign.aggregate({ _sum: { escrowBalance: true } }),
+    prisma.campaign.count(),
+    prisma.milestone.count({ where: { isCompleted: true } }),
+  ]);
 
   return {
-    totalInvestedHsk: (
-      investedTotal._sum.amount ?? new Prisma.Decimal(0)
+    escrowBalanceHsk: (
+      escrowTotal._sum.escrowBalance ?? new Prisma.Decimal(0)
     ).toNumber(),
     campaignsCount,
     milestonesCompleted,

@@ -6,3 +6,5 @@ pnpm-workspace.yaml
 # Separate Hardhat sub-project with its own toolchain/conventions — not part
 # of the Next.js app's lint/format/test scope.
 contracts
+# Generated from contracts/artifacts by contracts/scripts/export-abis.js.
+lib/abi

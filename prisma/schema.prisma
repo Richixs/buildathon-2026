@@ -27,33 +27,54 @@ model Profile {
   @@map("profiles")
 }
 
+// Mirrors EquityEscrow.Status once the escrow is deployed (see
+// lib/escrow/config.ts prismaStatusFromChain):
+//   DRAFT     -> no escrow yet (Postgres only)
+//   ACTIVE    -> Funding
+//   FUNDED    -> Active (goal reached, releasing milestones)
+//   COMPLETED -> Completed (every milestone released)
+//   FAILED    -> Failed (expired underfunded, or cancelled by the admin)
 enum CampaignStatus {
   DRAFT
   ACTIVE
   FUNDED
+  COMPLETED
   FAILED
 }
 
+// Amounts are HSK with 18 decimals, same precision as the wei on-chain.
 model Campaign {
-  id              String         @id @default(cuid())
-  title           String
-  description     String
-  goalAmount      Decimal        @db.Decimal(18, 6)
-  raisedAmount    Decimal        @default(0) @db.Decimal(18, 6)
+  id                     String         @id @default(cuid())
+  title                  String
+  description            String
+  goalAmount             Decimal        @db.Decimal(36, 18)
+  // EquityEscrow.totalRaised, synced from chain (lib/escrow/sync.ts).
+  raisedAmount           Decimal        @default(0) @db.Decimal(36, 18)
+  // EquityEscrow.escrowBalance(): HSK still custodied (not released, not
+  // refunded), synced from chain.
+  escrowBalance          Decimal        @default(0) @db.Decimal(36, 18)
   // % of the company offered for this raise (SAFE terms), e.g. 12.50.
-  equityOffered   Decimal        @db.Decimal(5, 2)
+  equityOffered          Decimal        @db.Decimal(5, 2)
   // Ticker for this campaign's security token, e.g. "NXUS". Stored
   // uppercase — see lib/validations/campaign.ts.
-  tokenSymbol     String
-  status          CampaignStatus @default(DRAFT)
-  // Set once the campaign's escrow contract is deployed on HashKey Chain.
-  contractAddress String?
+  tokenSymbol            String
+  status                 CampaignStatus @default(DRAFT)
+  // Passed to EquityEscrowFactory.createCampaign when the founder deploys.
+  fundingDurationSeconds Int            @default(2592000)
+  // EquityEscrow.fundingDeadline, read from chain on activation.
+  fundingDeadline        DateTime?
+  // EquityEscrow address, set once the deploy tx is verified on-chain.
+  contractAddress        String?        @unique
+  // EquityToken address deployed by the escrow.
+  tokenAddress           String?
+  // Factory createCampaign tx that deployed the escrow.
+  deployTxHash           String?        @unique
   // YouTube link to the founder's pitch/demo video, shown embedded on the
   // campaign detail page. Optional — see lib/validations/campaign.ts for
   // the URL format check.
-  pitchVideoUrl   String?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  pitchVideoUrl          String?
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
 
   founderAddress String
   founder        Profile @relation(fields: [founderAddress], references: [address])
@@ -70,28 +91,37 @@ model Milestone {
   id                String   @id @default(cuid())
   title             String
   targetDate        DateTime
+  // Set from EquityEscrow.currentMilestoneIndex by the chain sync — never
+  // written directly by a client.
   isCompleted       Boolean  @default(false)
   // % of the campaign's escrowed capital released when this milestone is
   // marked complete. The sum across a campaign's milestones must equal 100
   // — enforced in lib/validations/campaign.ts, not at the DB level, since
   // Postgres can't easily check an aggregate across sibling rows.
   releasePercentage Int
+  // Index in EquityEscrow.milestonePercentages (release order).
+  position          Int      @default(0)
   createdAt         DateTime @default(now())
 
   campaignId String
   campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 
+  @@unique([campaignId, position])
   @@index([campaignId])
   @@map("milestones")
 }
 
-// Off-chain record of an on-chain investment — txHash is the source of
-// truth and must be unique so the same transaction can't be recorded twice.
+// Off-chain record of an on-chain EquityEscrow.invest() call — txHash is
+// verified against the escrow's Invested event before the row is written,
+// and must be unique so the same transaction can't be recorded twice.
 model Investment {
-  id        String   @id @default(cuid())
-  amount    Decimal  @db.Decimal(18, 6)
-  txHash    String   @unique
-  createdAt DateTime @default(now())
+  id         String    @id @default(cuid())
+  amount     Decimal   @db.Decimal(36, 18)
+  txHash     String    @unique
+  // Set by the chain sync once EquityEscrow.investments(investor) is zeroed
+  // by claimRefund.
+  refundedAt DateTime?
+  createdAt  DateTime  @default(now())
 
   investorAddress String
   investor        Profile @relation(fields: [investorAddress], references: [address])

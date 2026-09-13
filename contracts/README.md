@@ -39,14 +39,20 @@ npm run deploy:mainnet   # deploys EquityEscrowFactory to HashKey mainnet (177)
 `PRIVATE_KEY` in `.env` needs testnet/mainnet HSK for gas before deploying —
 this repo cannot fund or run that deploy for you.
 
-## Known gaps before wiring this into the live app
+On WSL, if `npm` resolves to the Windows binary (HH1 / UNC path errors),
+call Hardhat directly: `node ./node_modules/hardhat/internal/cli/cli.js test`.
 
-- The Prisma `Campaign` model has no funding-deadline column yet
-  (`EquityEscrow`'s constructor needs `fundingDurationSeconds`) — add one, or
-  derive it from the first `Milestone.targetDate`.
-- Nothing in `app/` calls these contracts yet — `CreateCampaignForm.tsx`
-  writes straight to Postgres, and `InvestForm.tsx` sends a native transfer
-  to a treasury wallet (see `EQUITY_CHAIN_HANDOFF.md` gap #1). Wiring either
-  flow to `EquityEscrowFactory`/`EquityEscrow` via wagmi is a frontend task,
-  not a contracts one — see the `useWriteContract` example in the session
-  history for the shape of it.
+## Wiring into the app
+
+The Next.js app can't import this folder (it's excluded from its
+`tsconfig`), so ABIs are copied over after every Solidity change:
+
+```bash
+node ./node_modules/hardhat/internal/cli/cli.js compile
+node ./scripts/export-abis.js   # writes ../lib/abi/*.ts
+```
+
+After deploying the factory, set `NEXT_PUBLIC_ESCROW_FACTORY_ADDRESS` (and
+`NEXT_PUBLIC_ESCROW_CHAIN_ID`) in the app's `.env`. The founder's wallet
+calls `createCampaign`, the investor's wallet calls `invest`, and the API
+verifies every tx on-chain — see `lib/escrow/` in the app.

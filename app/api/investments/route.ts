@@ -1,12 +1,17 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
+import type { Hash } from "viem";
 import { prisma } from "@/lib/prisma";
 import { normalizeAddress } from "@/lib/address";
 import { createInvestmentSchema } from "@/lib/validations/investment";
+import { weiToHsk } from "@/lib/escrow/config";
+import { verifyInvestmentTx } from "@/lib/escrow/server";
+import { escrowErrorResponse } from "@/lib/escrow/http";
+import { syncCampaignFromChain } from "@/lib/escrow/sync";
 
 // "Mis Inversiones" tab: every investment made by this wallet, most recent
-// first, with enough of the campaign (status + milestones) to show how many
-// hitos are left before the rest of the escrowed capital is released.
+// first, with enough of the campaign (status + milestones + token) to show
+// how many hitos are left and the investor's EquityToken balance.
 export async function GET(request: NextRequest) {
   const investor = request.nextUrl.searchParams.get("investor");
 
@@ -26,9 +31,10 @@ export async function GET(request: NextRequest) {
           id: true,
           title: true,
           tokenSymbol: true,
+          tokenAddress: true,
           status: true,
           milestones: {
-            orderBy: { targetDate: "asc" },
+            orderBy: { position: "asc" },
             select: { id: true, title: true, isCompleted: true },
           },
         },
@@ -45,10 +51,9 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(body);
 }
 
-// Records a native HSK transfer already sent wallet-to-wallet via
-// useSendTransaction (see components/campaigns/InvestForm.tsx) — there's no
-// escrow contract yet, so this is bookkeeping around a real transfer, not a
-// verified on-chain claim. See EQUITY_CHAIN_HANDOFF.md gap #1.
+// Records an EquityEscrow.invest() call. The amount comes from the tx's
+// Invested event, not from the client, and the tx must target this
+// campaign's escrow from this wallet.
 export async function POST(request: Request) {
   const rawBody = await request.json().catch(() => null);
   const parsed = createInvestmentSchema.safeParse(rawBody);
@@ -60,7 +65,8 @@ export async function POST(request: Request) {
     );
   }
 
-  const { walletAddress, campaignId, amount, txHash } = parsed.data;
+  const { walletAddress, campaignId } = parsed.data;
+  const txHash = parsed.data.txHash.toLowerCase() as Hash;
   const investorAddress = normalizeAddress(walletAddress);
 
   const investor = await prisma.profile.findUnique({
@@ -85,22 +91,45 @@ export async function POST(request: Request) {
     );
   }
 
-  if (campaign.status !== "ACTIVE") {
+  if (!campaign.contractAddress) {
     return NextResponse.json(
-      { error: "Esta campaña ya no acepta inversiones." },
+      { error: "Esta campaña todavía no tiene escrow desplegado." },
       { status: 409 },
     );
   }
 
-  try {
-    const investment = await prisma.investment.create({
-      data: { amount, txHash, investorAddress, campaignId },
-    });
-
+  if (campaign.founderAddress === investorAddress) {
     return NextResponse.json(
-      { ...investment, amount: investment.amount.toNumber() },
-      { status: 201 },
+      { error: "El founder no puede invertir en su propia campaña." },
+      { status: 403 },
     );
+  }
+
+  // No `status === "ACTIVE"` check here: the tx that fills the goal also
+  // flips the escrow to Active (FUNDED), and an Invested event can only
+  // exist if the escrow was accepting funds when it was mined.
+  let amountWei: bigint;
+  try {
+    ({ amountWei } = await verifyInvestmentTx(txHash, {
+      escrowAddress: campaign.contractAddress,
+      investorAddress,
+    }));
+  } catch (error) {
+    const response = escrowErrorResponse(error);
+    if (response) return response;
+    throw error;
+  }
+
+  let investment;
+  try {
+    investment = await prisma.investment.create({
+      data: {
+        amount: weiToHsk(amountWei),
+        txHash,
+        investorAddress,
+        campaignId,
+      },
+    });
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -113,4 +142,15 @@ export async function POST(request: Request) {
     }
     throw error;
   }
+
+  // Best effort: the investment is already recorded; a failed sync only
+  // means totals/status catch up on the next one.
+  await syncCampaignFromChain(campaignId).catch((error) => {
+    console.error("syncCampaignFromChain failed after investment", error);
+  });
+
+  return NextResponse.json(
+    { ...investment, amount: investment.amount.toNumber() },
+    { status: 201 },
+  );
 }

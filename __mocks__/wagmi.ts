@@ -11,7 +11,20 @@ export const useDisconnect = jest.fn(() => ({
   disconnect: jest.fn(),
 }));
 
-export const useSendTransaction = jest.fn(() => ({
-  sendTransactionAsync: jest.fn(),
-  isPending: false,
+export const useChainId = jest.fn(() => 133);
+
+export const useSwitchChain = jest.fn(() => ({ mutateAsync: jest.fn() }));
+
+export const useWriteContract = jest.fn(() => ({ mutateAsync: jest.fn() }));
+
+export const usePublicClient = jest.fn(() => undefined);
+
+export const useReadContract = jest.fn(() => ({
+  data: undefined as unknown,
+  refetch: jest.fn(),
+}));
+
+export const useReadContracts = jest.fn(() => ({
+  data: undefined as unknown,
+  refetch: jest.fn(),
 }));

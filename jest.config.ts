@@ -72,6 +72,30 @@ const config: Config = {
       functions: 85,
       lines: 85,
     },
+    "app/api/campaigns/[id]/activate/route.ts": {
+      statements: 85,
+      branches: 85,
+      functions: 85,
+      lines: 85,
+    },
+    "app/api/campaigns/[id]/sync/route.ts": {
+      statements: 85,
+      branches: 85,
+      functions: 85,
+      lines: 85,
+    },
+    "components/campaigns/InvestForm.tsx": {
+      statements: 85,
+      branches: 85,
+      functions: 85,
+      lines: 85,
+    },
+    "lib/escrow/": {
+      statements: 85,
+      branches: 85,
+      functions: 85,
+      lines: 85,
+    },
     "lib/youtube.ts": {
       statements: 85,
       branches: 85,

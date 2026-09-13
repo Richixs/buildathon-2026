@@ -22,3 +22,44 @@ jobs:
           DATABASE_URL: "postgresql://user:password@localhost:5432/db?schema=public"
       - run: pnpm run lint
       - run: pnpm test --coverage
+
+  # Hardhat sub-project (own npm toolchain) + the app's opt-in e2e test,
+  # which verifies real factory/escrow txs through lib/escrow/server.ts.
+  contracts:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: "postgresql://user:password@localhost:5432/db?schema=public"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install contracts deps
+        working-directory: contracts
+        run: npm ci
+      - name: Compile and test contracts
+        working-directory: contracts
+        run: |
+          npx hardhat compile
+          npx hardhat test
+      - name: Check lib/abi matches the compiled contracts
+        run: |
+          node contracts/scripts/export-abis.js
+          git diff --exit-code lib/abi
+      - run: pnpm install --frozen-lockfile
+      - name: Start Hardhat node
+        working-directory: contracts
+        run: |
+          npx hardhat node --hostname 127.0.0.1 --port 8545 > hardhat-node.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf -X POST -H 'content-type: application/json' \
+              --data '{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}' \
+              http://127.0.0.1:8545 && break
+            sleep 1
+          done
+      - name: App ↔ contracts e2e
+        run: pnpm exec jest lib/escrow/escrow.e2e
+        env:
+          ESCROW_E2E_RPC_URL: http://127.0.0.1:8545

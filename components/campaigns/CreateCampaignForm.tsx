@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   useForm,
@@ -13,12 +14,21 @@ import { z } from "zod";
 import { useAccount } from "wagmi";
 import ConnectButton from "@/components/web3/ConnectButton";
 import { isYoutubeUrl } from "@/lib/youtube";
+import { readableTxError } from "@/lib/escrow/config";
+import { MAX_FUNDING_DAYS, MIN_FUNDING_DAYS } from "@/lib/validations/campaign";
+import type { CampaignDTO } from "@/lib/campaigns";
+import {
+  DEPLOY_STEP_LABELS,
+  useDeployEscrow,
+  type DeployStep,
+} from "@/hooks/use-deploy-escrow";
 
 // Gives the user time to read the success message before we navigate them
-// back to their dashboard.
+// to the campaign page.
 const REDIRECT_DELAY_MS = 1500;
 const TOTAL_RELEASE_PERCENTAGE = 100;
 const TOKEN_SYMBOL_REGEX = /^[A-Z]{3,5}$/;
+const DEFAULT_FUNDING_DAYS = 30;
 
 // Local, frontend-facing schema. `targetDate` stays a validated string here
 // (bound to <input type="date">) instead of reusing the backend's
@@ -62,6 +72,11 @@ const campaignFormSchema = z
       .pipe(
         z.string().regex(TOKEN_SYMBOL_REGEX, "3 a 5 letras (A-Z), ej. AAPL."),
       ),
+    fundingDurationDays: z
+      .number({ error: "Ingresa un número válido." })
+      .int("Debe ser un número entero de días.")
+      .min(MIN_FUNDING_DAYS, `Mínimo ${MIN_FUNDING_DAYS} día.`)
+      .max(MAX_FUNDING_DAYS, `Máximo ${MAX_FUNDING_DAYS} días.`),
     // Optional pitch/demo video — kept as a plain string here (empty means
     // "not provided") instead of transforming to `string | undefined` like
     // the backend schema, so the field's input/output types stay identical
@@ -92,13 +107,18 @@ const INPUT_CLASSES =
 
 const FIELD_ERROR_CLASSES = "text-red-400 font-mono text-xs";
 
-type SubmitState = "idle" | "success" | "error";
+// "draft": saved in Postgres but the escrow deploy didn't finish — the
+// founder can retry from the campaign page (DeployEscrowButton).
+type SubmitState = "idle" | "success" | "draft" | "error";
 
 export default function CreateCampaignForm() {
   const router = useRouter();
   const { address } = useAccount();
+  const deployEscrow = useDeployEscrow();
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [deployStep, setDeployStep] = useState<DeployStep | null>(null);
+  const [draftId, setDraftId] = useState<string | null>(null);
 
   const {
     register,
@@ -114,6 +134,7 @@ export default function CreateCampaignForm() {
       goalAmount: 0,
       equityOffered: 0,
       tokenSymbol: "",
+      fundingDurationDays: DEFAULT_FUNDING_DAYS,
       pitchVideoUrl: "",
       milestones: [{ title: "", targetDate: "", releasePercentage: 100 }],
     },
@@ -140,7 +161,9 @@ export default function CreateCampaignForm() {
 
     setSubmitState("idle");
     setSubmitError(null);
+    setDraftId(null);
 
+    let campaign: CampaignDTO;
     try {
       const response = await fetch("/api/campaigns", {
         method: "POST",
@@ -157,16 +180,30 @@ export default function CreateCampaignForm() {
         throw new Error(body?.error ?? "No se pudo crear la campaña.");
       }
 
-      setSubmitState("success");
-      reset();
-      setTimeout(() => {
-        router.push("/profile?tab=startups");
-      }, REDIRECT_DELAY_MS);
+      campaign = await response.json();
     } catch (error) {
       setSubmitState("error");
       setSubmitError(
         error instanceof Error ? error.message : "Error desconocido.",
       );
+      return;
+    }
+
+    // The DRAFT exists from here on — a failed deploy must not lose it.
+    reset();
+    setDraftId(campaign.id);
+
+    try {
+      await deployEscrow(campaign, setDeployStep);
+      setSubmitState("success");
+      setTimeout(() => {
+        router.push(`/campaigns/${campaign.id}`);
+      }, REDIRECT_DELAY_MS);
+    } catch (error) {
+      setSubmitState("draft");
+      setSubmitError(readableTxError(error));
+    } finally {
+      setDeployStep(null);
     }
   };
 
@@ -186,6 +223,11 @@ export default function CreateCampaignForm() {
       <h1 className="text-neon-cyan font-mono text-2xl font-bold tracking-widest">
         DESPLEGAR_CAMPAÑA
       </h1>
+      <p className="text-off-white/50 font-mono text-xs leading-5">
+        Se guarda la campaña y luego firmas con tu wallet el despliegue de su
+        escrow en HashKey Chain (tú pagas el gas). Los hitos se liberan en el
+        orden en que los cargues.
+      </p>
 
       <form
         onSubmit={handleSubmit(onSubmit)}
@@ -309,11 +351,32 @@ export default function CreateCampaignForm() {
               </p>
             )}
           </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="fundingDurationDays"
+              className="text-off-white/70 font-mono text-xs tracking-widest"
+            >
+              DURACIÓN DE LA RONDA (DÍAS)
+            </label>
+            <input
+              id="fundingDurationDays"
+              type="number"
+              step="1"
+              className={INPUT_CLASSES}
+              {...register("fundingDurationDays", { valueAsNumber: true })}
+            />
+            {errors.fundingDurationDays && (
+              <p className={FIELD_ERROR_CLASSES}>
+                {errors.fundingDurationDays.message}
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-col gap-3">
           <span className="text-off-white/70 font-mono text-xs tracking-widest">
-            HITOS
+            HITOS (EN ORDEN DE LIBERACIÓN)
           </span>
 
           {fields.map((field, index) => (
@@ -326,7 +389,7 @@ export default function CreateCampaignForm() {
                   htmlFor={`milestones.${index}.title`}
                   className="text-off-white/50 font-mono text-[11px] tracking-widest"
                 >
-                  TÍTULO DEL HITO
+                  TÍTULO DEL HITO {index + 1}
                 </label>
                 <input
                   id={`milestones.${index}.title`}
@@ -423,8 +486,22 @@ export default function CreateCampaignForm() {
 
         {submitState === "success" && (
           <p className="text-retro-green font-mono text-sm">
-            ¡Campaña desplegada! Redirigiendo a tu panel...
+            ¡Escrow desplegado y campaña activa! Redirigiendo...
           </p>
+        )}
+        {submitState === "draft" && draftId && (
+          <div className="border-warning-orange/40 flex flex-col gap-2 border p-3">
+            <p className="text-warning-orange font-mono text-xs">
+              La campaña quedó guardada como borrador, pero el escrow no se
+              desplegó: {submitError}
+            </p>
+            <Link
+              href={`/campaigns/${draftId}`}
+              className="text-neon-cyan font-mono text-xs underline"
+            >
+              REINTENTAR_DESPLIEGUE →
+            </Link>
+          </div>
         )}
         {submitState === "error" && submitError && (
           <p className={FIELD_ERROR_CLASSES}>{submitError}</p>
@@ -435,9 +512,11 @@ export default function CreateCampaignForm() {
           disabled={isSubmitting}
           className="bg-neon-cyan text-crt-black border-crt-black border-2 px-6 py-3 font-mono font-bold shadow-[4px_4px_0px_0px_#45A29E] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isSubmitting
-            ? "[ INICIALIZANDO_DATOS... ]"
-            : "[ DESPLEGAR_CAMPAÑA ]"}
+          {deployStep
+            ? DEPLOY_STEP_LABELS[deployStep]
+            : isSubmitting
+              ? "[ INICIALIZANDO_DATOS... ]"
+              : "[ DESPLEGAR_CAMPAÑA ]"}
         </button>
       </form>
     </div>

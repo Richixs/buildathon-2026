@@ -3,7 +3,12 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { normalizeAddress } from "@/lib/address";
 import { createCampaignSchema } from "@/lib/validations/campaign";
-import { getActiveCampaigns, getCampaignsByFounder } from "@/lib/campaigns";
+import {
+  getActiveCampaigns,
+  getCampaignById,
+  getCampaignsByFounder,
+} from "@/lib/campaigns";
+import { SECONDS_PER_DAY } from "@/lib/escrow/config";
 
 // No `?founder=` → the public "STARTUPS_ACTIVAS" feed (ACTIVE only). With it
 // → a founder's own campaigns regardless of status, for the "Mis Startups"
@@ -18,6 +23,9 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(campaigns);
 }
 
+// Creates the campaign as DRAFT. It only becomes ACTIVE through
+// POST /api/campaigns/[id]/activate, once the founder's
+// EquityEscrowFactory.createCampaign tx is verified on-chain.
 export async function POST(request: Request) {
   const rawBody = await request.json().catch(() => null);
   const parsed = createCampaignSchema.safeParse(rawBody);
@@ -36,7 +44,7 @@ export async function POST(request: Request) {
     goalAmount,
     equityOffered,
     tokenSymbol,
-    contractAddress,
+    fundingDurationDays,
     pitchVideoUrl,
     milestones,
   } = parsed.data;
@@ -61,7 +69,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const campaign = await prisma.$transaction(async (tx) => {
+    const campaignId = await prisma.$transaction(async (tx) => {
       const created = await tx.campaign.create({
         data: {
           title,
@@ -69,36 +77,30 @@ export async function POST(request: Request) {
           goalAmount,
           equityOffered,
           tokenSymbol,
-          contractAddress: contractAddress ?? null,
+          fundingDurationSeconds: fundingDurationDays * SECONDS_PER_DAY,
           pitchVideoUrl: pitchVideoUrl ?? null,
           founderAddress,
         },
       });
 
+      // `position` is the index in the escrow's milestonePercentages —
+      // the order the founder entered them in the form.
       await tx.milestone.createMany({
-        data: milestones.map((milestone) => ({
+        data: milestones.map((milestone, position) => ({
           title: milestone.title,
           targetDate: milestone.targetDate,
           releasePercentage: milestone.releasePercentage,
+          position,
           campaignId: created.id,
         })),
       });
 
-      return tx.campaign.findUniqueOrThrow({
-        where: { id: created.id },
-        include: { milestones: true },
-      });
+      return created.id;
     });
 
-    return NextResponse.json(
-      {
-        ...campaign,
-        goalAmount: campaign.goalAmount.toNumber(),
-        equityOffered: campaign.equityOffered.toNumber(),
-        raisedAmount: campaign.raisedAmount.toNumber(),
-      },
-      { status: 201 },
-    );
+    return NextResponse.json(await getCampaignById(campaignId), {
+      status: 201,
+    });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       return NextResponse.json(

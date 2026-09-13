@@ -2,11 +2,13 @@ import AppShell from "@/components/layout/AppShell";
 import ProgressBar from "@/components/startup/ProgressBar";
 import MilestoneStepper from "@/components/startup/MilestoneStepper";
 import InvestForm from "@/components/campaigns/InvestForm";
+import EscrowPanel from "@/components/campaigns/EscrowPanel";
+import DeployEscrowButton from "@/components/campaigns/DeployEscrowButton";
 import PitchVideo from "@/components/campaigns/PitchVideo";
 import { getCampaignById } from "@/lib/campaigns";
 import { shortenAddress } from "@/lib/address";
-
-const usd = (n: number) => `$${n.toLocaleString("en-US")}`;
+import { formatHsk } from "@/lib/format";
+import { STATUS_LABELS, type CampaignStatusValue } from "@/lib/escrow/config";
 
 export default async function CampaignDetailPage({
   params,
@@ -28,10 +30,12 @@ export default async function CampaignDetailPage({
     );
   }
 
-  const pct = Math.round((campaign.raisedAmount / campaign.goalAmount) * 100);
-  const funded = pct >= 100;
-  const escrowLocked = Math.max(0, campaign.goalAmount - campaign.raisedAmount);
-  const currentMilestone = campaign.milestones.filter(
+  const status = campaign.status as CampaignStatusValue;
+  const pct =
+    campaign.goalAmount > 0
+      ? Math.round((campaign.raisedAmount / campaign.goalAmount) * 100)
+      : 0;
+  const completedMilestones = campaign.milestones.filter(
     (m) => m.isCompleted,
   ).length;
 
@@ -44,15 +48,17 @@ export default async function CampaignDetailPage({
               [@{campaign.founder.alias}] ·{" "}
               {shortenAddress(campaign.founder.address)}
             </span>
-            {funded ? (
-              <span className="text-retro-green font-mono text-xs font-bold">
-                FUNDED ✓
-              </span>
-            ) : (
-              <span className="text-off-white/40 font-mono text-xs">
-                ${campaign.tokenSymbol}
-              </span>
-            )}
+            <span
+              className={`font-mono text-xs font-bold ${
+                status === "FUNDED" || status === "COMPLETED"
+                  ? "text-retro-green"
+                  : status === "FAILED"
+                    ? "text-red-400"
+                    : "text-off-white/60"
+              }`}
+            >
+              ${campaign.tokenSymbol} · {STATUS_LABELS[status]}
+            </span>
           </div>
 
           <h1 className="font-mono text-3xl font-bold tracking-tight sm:text-4xl">
@@ -72,14 +78,17 @@ export default async function CampaignDetailPage({
           <ProgressBar value={pct} />
           <div className="flex items-center justify-between font-mono text-sm">
             <span className="text-neon-cyan font-bold">
-              {usd(campaign.raisedAmount)} / {usd(campaign.goalAmount)}
+              {formatHsk(campaign.raisedAmount)} /{" "}
+              {formatHsk(campaign.goalAmount)}
             </span>
             <span className="text-off-white/50">
               {campaign.backers} inversores
             </span>
           </div>
           <span className="text-off-white/40 font-mono text-xs">
-            {usd(escrowLocked)} bloqueados en escrow
+            {campaign.contractAddress
+              ? `${formatHsk(campaign.escrowBalance)} custodiados en escrow`
+              : "Escrow on-chain sin desplegar"}
           </span>
         </div>
 
@@ -89,18 +98,64 @@ export default async function CampaignDetailPage({
               HITOS DE LIBERACIÓN
             </span>
             <MilestoneStepper
-              milestones={campaign.milestones.map((m) => m.title)}
-              current={currentMilestone}
+              milestones={campaign.milestones.map(
+                (m) => `${m.title} · ${m.releasePercentage}%`,
+              )}
+              current={completedMilestones}
             />
           </div>
         )}
 
-        {campaign.status === "ACTIVE" ? (
-          <InvestForm campaignId={campaign.id} />
+        {campaign.contractAddress && (
+          <EscrowPanel
+            campaignId={campaign.id}
+            contractAddress={campaign.contractAddress}
+            tokenAddress={campaign.tokenAddress}
+            tokenSymbol={campaign.tokenSymbol}
+            milestones={campaign.milestones.map((m) => ({
+              title: m.title,
+              releasePercentage: m.releasePercentage,
+            }))}
+            dbStatus={campaign.status}
+            dbRaisedAmount={campaign.raisedAmount}
+            dbEscrowBalance={campaign.escrowBalance}
+            dbCompletedMilestones={completedMilestones}
+          />
+        )}
+
+        {status === "DRAFT" ? (
+          <div className="border-warning-orange/40 bg-terminal-gray flex flex-col items-center gap-4 border p-6 text-center">
+            <p className="text-warning-orange font-mono text-xs tracking-widest">
+              [ BORRADOR — ESCROW PENDIENTE ]
+            </p>
+            <DeployEscrowButton
+              founderAddress={campaign.founderAddress}
+              campaign={{
+                id: campaign.id,
+                title: campaign.title,
+                goalAmount: campaign.goalAmount,
+                equityOffered: campaign.equityOffered,
+                tokenSymbol: campaign.tokenSymbol,
+                fundingDurationSeconds: campaign.fundingDurationSeconds,
+                milestones: campaign.milestones.map((m) => ({
+                  releasePercentage: m.releasePercentage,
+                  position: m.position,
+                })),
+              }}
+            />
+          </div>
+        ) : status === "ACTIVE" && campaign.contractAddress ? (
+          <InvestForm
+            campaignId={campaign.id}
+            contractAddress={campaign.contractAddress}
+            founderAddress={campaign.founderAddress}
+          />
         ) : (
           <div className="border-off-white/20 bg-terminal-gray border p-6 text-center">
             <p className="text-off-white/70 font-mono text-sm">
-              Esta campaña ya no acepta inversiones ({campaign.status}).
+              {campaign.contractAddress
+                ? `Esta campaña ya no acepta inversiones (${STATUS_LABELS[status]}).`
+                : "Esta campaña no tiene escrow on-chain y no acepta inversiones."}
             </p>
           </div>
         )}
