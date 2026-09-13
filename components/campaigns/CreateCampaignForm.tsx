@@ -12,6 +12,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAccount } from "wagmi";
 import ConnectButton from "@/components/web3/ConnectButton";
+import { isYoutubeUrl } from "@/lib/youtube";
 
 // Gives the user time to read the success message before we navigate them
 // back to their dashboard.
@@ -61,6 +62,17 @@ const campaignFormSchema = z
       .pipe(
         z.string().regex(TOKEN_SYMBOL_REGEX, "3 a 5 letras (A-Z), ej. AAPL."),
       ),
+    // Optional pitch/demo video — kept as a plain string here (empty means
+    // "not provided") instead of transforming to `string | undefined` like
+    // the backend schema, so the field's input/output types stay identical
+    // and `useForm<CampaignFormValues>()` doesn't need separate generics.
+    // The empty→undefined conversion happens once, in onSubmit below.
+    pitchVideoUrl: z
+      .string()
+      .trim()
+      .refine((value) => value === "" || isYoutubeUrl(value), {
+        message: "Debe ser un link válido de YouTube.",
+      }),
     milestones: z.array(milestoneFormSchema).min(1, "Agrega al menos un hito."),
   })
   .refine(
@@ -102,6 +114,7 @@ export default function CreateCampaignForm() {
       goalAmount: 0,
       equityOffered: 0,
       tokenSymbol: "",
+      pitchVideoUrl: "",
       milestones: [{ title: "", targetDate: "", releasePercentage: 100 }],
     },
   });
@@ -132,7 +145,11 @@ export default function CreateCampaignForm() {
       const response = await fetch("/api/campaigns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...values, walletAddress: address }),
+        body: JSON.stringify({
+          ...values,
+          pitchVideoUrl: values.pitchVideoUrl || undefined,
+          walletAddress: address,
+        }),
       });
 
       if (!response.ok) {
@@ -208,6 +225,27 @@ export default function CreateCampaignForm() {
           />
           {errors.description && (
             <p className={FIELD_ERROR_CLASSES}>{errors.description.message}</p>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label
+            htmlFor="pitchVideoUrl"
+            className="text-off-white/70 font-mono text-xs tracking-widest"
+          >
+            VIDEO DEL PITCH (YOUTUBE) — OPCIONAL
+          </label>
+          <input
+            id="pitchVideoUrl"
+            type="text"
+            placeholder="https://youtube.com/watch?v=..."
+            className={INPUT_CLASSES}
+            {...register("pitchVideoUrl")}
+          />
+          {errors.pitchVideoUrl && (
+            <p className={FIELD_ERROR_CLASSES}>
+              {errors.pitchVideoUrl.message}
+            </p>
           )}
         </div>
 

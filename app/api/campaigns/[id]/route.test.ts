@@ -16,6 +16,7 @@ const campaign = {
   tokenSymbol: "NXUS",
   status: "ACTIVE" as const,
   contractAddress: null,
+  pitchVideoUrl: "https://youtu.be/dQw4w9WgXcQ",
   founderAddress: "0x222222222222222222222222222222222222222b",
   createdAt: now,
   updatedAt: now,
@@ -74,5 +75,6 @@ describe("GET /api/campaigns/[id]", () => {
       address: campaign.founderAddress,
       alias: "acme_founder",
     });
+    expect(body.pitchVideoUrl).toBe("https://youtu.be/dQw4w9WgXcQ");
   });
 });

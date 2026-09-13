@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isYoutubeUrl } from "@/lib/youtube";
 
 const EVM_ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
 const TOKEN_SYMBOL_REGEX = /^[A-Z]{3,5}$/;
@@ -70,6 +71,16 @@ export const createCampaignSchema = z
         "contractAddress no es una dirección EVM válida.",
       )
       .optional(),
+    // Founder's pitch/demo video, embedded on the campaign detail page.
+    // Empty string (an untouched optional form field) means "not provided".
+    pitchVideoUrl: z
+      .string()
+      .trim()
+      .optional()
+      .transform((value) => (value ? value : undefined))
+      .refine((value) => value === undefined || isYoutubeUrl(value), {
+        message: "Debe ser un link válido de YouTube.",
+      }),
     milestones: z
       .array(milestoneInputSchema)
       .min(1, "Debes definir al menos un hito."),

@@ -28,6 +28,7 @@ const campaign = {
   tokenSymbol: "NXUS",
   status: "ACTIVE" as const,
   contractAddress: null,
+  pitchVideoUrl: null,
   founderAddress: "0x222222222222222222222222222222222222222b",
   createdAt: now,
   updatedAt: now,
