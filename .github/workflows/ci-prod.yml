@@ -12,8 +12,13 @@ on:
       - prisma/**
       - prisma.config.ts
       - app/**
+      - components/**
+      - hooks/**
+      - config/**
+      - public/**
       - lib/**
       - next.config.ts
+      - postcss.config.mjs
       - .github/workflows/ci-prod.yml
 
 env:
