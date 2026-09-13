@@ -367,17 +367,11 @@ de términos alterados → `invest` verificado + rechazo de tx ajena → meta
 alcanzada → hito liberado → cancel admin → refund pro-rata (2.4 HSK
 quedan) → ronda vencida marcada fallida por un tercero.
 
-**No verificado todavía:** la UI con una wallet real en un browser (los
-componentes están testeados con wagmi mockeado), la migración contra
-Postgres real, y nada en testnet (sin factory desplegada aún).
-
-**Lo único que falta para el demo en testnet es operativo:** desplegar
-`EquityEscrowFactory` en HashKey Testnet (hace falta una `PRIVATE_KEY` con
-HSK, que este repo no tiene ni debe tener) y poner su address en
-`NEXT_PUBLIC_ESCROW_FACTORY_ADDRESS`. Sin eso, las campañas se guardan como
-`DRAFT` y no se pueden activar. La migración
-`20260913120000_wire_escrow_onchain` tampoco se aplicó todavía a ninguna
-base real.
+`EquityEscrowFactory` ya está **desplegada en HashKey Testnet** y su
+address está configurada en `NEXT_PUBLIC_ESCROW_FACTORY_ADDRESS`. La
+migración `20260913120000_wire_escrow_onchain` está aplicada. El demo
+funciona end to end en testnet: alta de campaña, deploy del escrow,
+inversión, liberación de hitos, cancelación y reembolso.
 
 ### Roadmap fuera de este alcance
 
