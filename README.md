@@ -54,7 +54,7 @@ contrato.
 | CI                   | lint + Jest; Hardhat + verificación de ABIs + e2e en nodo local |
 | Package manager raíz | `pnpm@12.4.1`                                               |
 
-Nombre npm de la app: `buildathon-pollar-track`. Marca: `EQUITY_CHAIN`.
+Nombre npm de la app: `equity-chain`. Marca: **EQUITY_CHAIN** by TripleR.
 
 ---
 
