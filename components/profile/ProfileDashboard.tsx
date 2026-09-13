@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAccount } from "wagmi";
 import { Briefcase, Rocket } from "lucide-react";
 import ProgressBar from "@/components/startup/ProgressBar";
+import TokenBalance from "@/components/campaigns/TokenBalance";
 import { shortenAddress } from "@/lib/address";
 import type { ProfileRole } from "@/components/profile/RegistrationForm";
 
@@ -31,7 +32,9 @@ interface InvestmentSummary {
   campaignId: string;
   projectName: string;
   tokenSymbol: string;
+  tokenAddress: string | null;
   amountHsk: number;
+  refunded: boolean;
   status: string;
   remainingMilestones: number;
   totalMilestones: number;
@@ -56,10 +59,12 @@ interface StartupSummary {
 interface InvestmentApiItem {
   id: string;
   amount: number;
+  refundedAt?: string | null;
   campaign: {
     id: string;
     title: string;
     tokenSymbol: string;
+    tokenAddress?: string | null;
     status: string;
     milestones: { isCompleted: boolean }[];
   };
@@ -179,7 +184,9 @@ export default function ProfileDashboard() {
           campaignId: investment.campaign.id,
           projectName: investment.campaign.title,
           tokenSymbol: investment.campaign.tokenSymbol,
+          tokenAddress: investment.campaign.tokenAddress ?? null,
           amountHsk: investment.amount,
+          refunded: Boolean(investment.refundedAt),
           status: investment.campaign.status,
           remainingMilestones: remainingOf(investment.campaign.milestones),
           totalMilestones: investment.campaign.milestones.length,
@@ -345,6 +352,23 @@ export default function ProfileDashboard() {
                         {investment.amountHsk} HSK invertidos
                       </span>
                     </div>
+                    {(investment.tokenAddress || investment.refunded) && (
+                      <div className="flex items-center justify-between gap-3">
+                        {investment.tokenAddress ? (
+                          <TokenBalance
+                            tokenAddress={investment.tokenAddress}
+                            tokenSymbol={investment.tokenSymbol}
+                          />
+                        ) : (
+                          <span />
+                        )}
+                        {investment.refunded && (
+                          <span className="text-warning-orange font-mono text-xs">
+                            [↺] REEMBOLSADO
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </Link>
                 ))}
               </div>
@@ -390,6 +414,11 @@ export default function ProfileDashboard() {
                       remaining={startup.remainingMilestones}
                       total={startup.totalMilestones}
                     />
+                    {startup.status === "DRAFT" && (
+                      <span className="text-warning-orange font-mono text-xs">
+                        ESCROW PENDIENTE — entra a la campaña para desplegarlo
+                      </span>
+                    )}
                   </Link>
                 ))}
               </div>

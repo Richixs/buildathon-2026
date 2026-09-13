@@ -3,8 +3,7 @@ import AppShell from "@/components/layout/AppShell";
 import ProgressBar from "@/components/startup/ProgressBar";
 import MilestoneStepper from "@/components/startup/MilestoneStepper";
 import { getActiveCampaigns } from "@/lib/campaigns";
-
-const usd = (n: number) => `$${n.toLocaleString("en-US")}`;
+import { formatHsk } from "@/lib/format";
 
 // Same reasoning as app/page.tsx: this queries Postgres directly, so it
 // needs to stay dynamic or the feed goes stale until the next deploy.
@@ -41,9 +40,11 @@ export default async function StartupsPage() {
         ) : (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
             {campaigns.map((c) => {
-              const pct = Math.round((c.raisedAmount / c.goalAmount) * 100);
+              const pct =
+                c.goalAmount > 0
+                  ? Math.round((c.raisedAmount / c.goalAmount) * 100)
+                  : 0;
               const funded = pct >= 100;
-              const escrowLocked = Math.max(0, c.goalAmount - c.raisedAmount);
               const milestoneTitles = c.milestones.map((m) => m.title);
               const currentMilestone = c.milestones.filter(
                 (m) => m.isCompleted,
@@ -82,7 +83,7 @@ export default async function StartupsPage() {
                     <ProgressBar value={pct} />
                     <div className="flex items-center justify-between font-mono text-xs">
                       <span className="text-neon-cyan font-bold">
-                        {usd(c.raisedAmount)} / {usd(c.goalAmount)}
+                        {formatHsk(c.raisedAmount)} / {formatHsk(c.goalAmount)}
                       </span>
                       <span className="text-off-white/50">
                         {c.backers} inversores
@@ -100,7 +101,7 @@ export default async function StartupsPage() {
                         current={currentMilestone}
                       />
                       <span className="text-off-white/40 font-mono text-[11px]">
-                        {usd(escrowLocked)} bloqueados en escrow
+                        {formatHsk(c.escrowBalance)} custodiados en escrow
                       </span>
                     </div>
                   )}

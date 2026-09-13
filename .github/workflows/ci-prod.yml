@@ -76,6 +76,9 @@ jobs:
             ${{ env.REGISTRY }}/${{ steps.meta.outputs.image }}:latest
           build-args: |
             NEXT_PUBLIC_PROJECT_ID=${{ vars.NEXT_PUBLIC_PROJECT_ID }}
+            NEXT_PUBLIC_APP_URL=${{ vars.NEXT_PUBLIC_APP_URL }}
+            NEXT_PUBLIC_ESCROW_CHAIN_ID=${{ vars.NEXT_PUBLIC_ESCROW_CHAIN_ID || '133' }}
+            NEXT_PUBLIC_ESCROW_FACTORY_ADDRESS=${{ vars.NEXT_PUBLIC_ESCROW_FACTORY_ADDRESS }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import AppShell from "@/components/layout/AppShell";
 import { getPlatformStats } from "@/lib/campaigns";
+import { formatHsk } from "@/lib/format";
 
 const steps = [
   {
@@ -11,7 +12,7 @@ const steps = [
   {
     n: "02",
     title: "INVERSIÓN_+_ESCROW",
-    body: "El inversor deposita USDC en el Smart Contract de Escrow y recibe sus tokens de equity al instante. El capital queda bloqueado.",
+    body: "El inversor deposita HSK en el Smart Contract de Escrow y recibe sus tokens de equity al instante (1:1). El capital queda bloqueado.",
   },
   {
     n: "03",
@@ -30,10 +31,7 @@ export default async function Home() {
   const stats = await getPlatformStats();
 
   const statTiles: [string, string][] = [
-    [
-      `Ξ ${stats.totalInvestedHsk.toLocaleString("en-US")}`,
-      "CAPITAL EN ESCROW",
-    ],
+    [formatHsk(stats.escrowBalanceHsk), "CAPITAL EN ESCROW"],
     [String(stats.campaignsCount), "STARTUPS TOKENIZADAS"],
     [String(stats.milestonesCompleted), "HITOS CUMPLIDOS"],
     // Not derived from any query — there's no mechanism in this system by

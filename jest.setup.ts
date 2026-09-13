@@ -9,7 +9,10 @@ global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder;
 
 // Baseline global fetch mock. Individual tests provide the response they
-// need via `jest.mocked(fetch).mockResolvedValueOnce(...)`.
+// need via `jest.mocked(fetch).mockResolvedValueOnce(...)`. The real one
+// (node env only) stays reachable for opt-in tests that talk to a live RPC
+// — see lib/escrow/escrow.e2e.test.ts.
+(globalThis as { realFetch?: typeof fetch }).realFetch = global.fetch;
 global.fetch = jest.fn();
 
 // jsdom doesn't implement the Clipboard API — ConnectButton/WalletQrModal

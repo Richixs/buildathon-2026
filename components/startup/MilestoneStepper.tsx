@@ -11,7 +11,7 @@ export default function MilestoneStepper({
         const done = i < current;
         const active = i === current;
         return (
-          <div key={m} className="flex items-center gap-2 font-mono text-xs">
+          <div key={i} className="flex items-center gap-2 font-mono text-xs">
             <span
               className={
                 done

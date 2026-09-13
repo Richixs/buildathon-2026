@@ -4,7 +4,7 @@ import * as dotenv from "dotenv";
 
 dotenv.config();
 
-// Real, verified RPCs (see ../EQUITY_CHAIN_HANDOFF.md) — not hashkey.cloud,
+// Real, verified RPCs (eth_chainId 0x85 on testnet) — not hashkey.cloud,
 // that domain doesn't resolve. Overridable via env for a private RPC.
 const HSK_TESTNET_RPC_URL =
   process.env.HSK_TESTNET_RPC_URL ?? "https://testnet.hsk.xyz";
